@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Guitar Store{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <noscript>
+        <style>
+            /* Fallback styles for no JavaScript */
+            .hamburger-btn {
+                display: none !important;
+            }
+            .mobile-nav-drawer {
+                display: none !important;
+            }
+            .mobile-nav-overlay {
+                display: none !important;
+            }
+            .no-js-warning {
+                display: block !important;
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                color: #856404;
+                padding: 12px 20px;
+                text-align: center;
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+            .clickable-card {
+                cursor: default !important;
+            }
+            .clickable-card:hover {
+                transform: none !important;
+                box-shadow: 0 8px 20px rgba(196, 63, 86, 0.12) !important;
+                background-color: white !important;
+            }
+            /* Show fallback navigation on mobile */
+            @media (max-width: 768px) {
+                .header-left {
+                    order: 1;
+                }
+                .search-container {
+                    order: 2;
+                }
+                .user-menu,
+                .auth-menu {
+                    display: flex !important;
+                    order: 3;
+                    flex-shrink: 0;
+                }
+                header {
+                    flex-wrap: wrap;
+                    gap: 10px;
+                }
+            }
+        </style>
+    </noscript>
+</head>
+<body class="homepage {% block body_class %}{% endblock %}">
+    <noscript>
+        <div class="no-js-warning">
+            ⚠️ JavaScript is disabled. Some features may be limited, but you can still browse and shop!
+        </div>
+    </noscript>
+    <header>
+        <!-- Left side: Home and Hamburger icons together -->
+        <div class="header-left">
+            <a href="{{ url_for('home') }}" class="home-icon">
+                <img src="{{ url_for('static', filename='Images/Logo.png') }}" alt="Guitar Store Logo" class="logo-img">
+            </a>
+            <noscript>
+                <!-- Fallback navigation menu when JavaScript is disabled -->
+                <div class="no-js-nav">
+                    <a href="{{ url_for('home') }}" class="no-js-nav-link">🏠 Home</a>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('shopping_cart') }}" class="no-js-nav-link">🛒 Cart</a>
+                        <form method="post" action="{{ url_for('logout') }}" class="no-js-logout-form">
+                            <button type="submit" class="no-js-nav-link">🚪 Logout</button>
+                        </form>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="no-js-nav-link">🔐 Login</a>
+                        <a href="{{ url_for('register') }}" class="no-js-nav-link">📝 Register</a>
+                    {% endif %}
+                </div>
+            </noscript>
+            <button class="hamburger-btn" aria-label="Open navigation menu" onclick="toggleMobileMenu()">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+        </div>
+        
+        <!-- Search container (visible on all devices) -->
+        <div class="search-container">
+            {% if current_user.is_authenticated %}
+                {% block search_form %}
+                <form method="get" action="{{ url_for('search') }}" class="search-form">
+                    <div class="search-input-wrapper">
+                        <input type="text" name="q" class="search-input" placeholder="Search guitars...">
+                        <select name="category" class="search-category-select">
+                            <option value="">All Categories</option>
+                            {% if categories %}
+                                {% for cat in categories %}
+                                <option value="{{ cat['category'] }}" {% if selected_category == cat['category'].lower() %}selected{% endif %}>{{ cat['category'] }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                        <button type="submit" class="search-submit-btn" title="Search">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+                {% endblock %}
+            {% else %}
+                <noscript>
+                    <!-- Enable search when JavaScript is disabled -->
+                    <form method="get" action="{{ url_for('search') }}" class="search-form">
+                        <div class="search-input-wrapper">
+                            <input type="text" name="q" class="search-input" placeholder="Search guitars...">
+                            <select name="category" class="search-category-select">
+                                <option value="">All Categories</option>
+                                {% if categories %}
+                                    {% for cat in categories %}
+                                    <option value="{{ cat['category'] }}">{{ cat['category'] }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                            <button type="submit" class="search-submit-btn" title="Search">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                </noscript>
+                <div class="search-form search-disabled">
+                    <div class="search-input-wrapper">
+                        <input type="text" class="search-input" placeholder="Search guitars..." disabled>
+                        <select name="category" class="search-category-select" disabled>
+                            <option value="">All Categories</option>
+                            {% if categories %}
+                                {% for cat in categories %}
+                                <option value="{{ cat['category'] }}">{{ cat['category'] }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                        <button type="submit" class="search-submit-btn" disabled title="Search">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="search-login-container">
+                    <a href="{{ url_for('login') }}" class="search-login-prompt">Login to search</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Desktop user menu (hidden on mobile) -->
+        {% if current_user.is_authenticated %}
+            <div class="user-menu">
+                <a href="{{ url_for('shopping_cart') }}" class="cart-button" aria-label="Shopping Cart">
+                    🛒 Cart
+                    {% if cart_items and cart_items|length > 0 %}
+                        <span class="cart-count">{{ cart_items|length }}</span>
+                    {% endif %}
+                </a>
+                <form method="post" action="{{ url_for('logout') }}" class="logout-form-inline">
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="auth-menu">
+                <a href="{{ url_for('login') }}" class="auth-link login-link">Login</a>
+                <a href="{{ url_for('register') }}" class="auth-link register-link">Register</a>
+            </div>
+        {% endif %}
+    </header>
+    
+    <!-- Mobile navigation drawer (hidden by default) -->
+    <div class="mobile-nav-drawer" id="mobileNavDrawer">
+        <div class="mobile-nav-content">
+            <!-- Close button in top-right -->
+            <button class="close-nav-btn" aria-label="Close menu" onclick="toggleMobileMenu()">×</button>
+            
+            <!-- User welcome message (if authenticated) -->
+            {% if current_user.is_authenticated %}
+                <div class="mobile-user-header">
+                    <span class="mobile-welcome">Welcome, {{ current_user.username }}!</span>
+                </div>
+            {% endif %}
+            
+            <!-- Navigation links -->
+            <nav class="mobile-nav-links">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('shopping_cart') }}" class="mobile-nav-link">
+                        🛒 Cart
+                        {% if cart_items and cart_items|length > 0 %}
+                            <span class="mobile-cart-count">{{ cart_items|length }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
+                    <form method="post" action="{{ url_for('logout') }}" class="mobile-logout-form">
+                        <button type="submit" class="mobile-nav-link logout-btn">Logout</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="mobile-nav-link">Login</a>
+                    <a href="{{ url_for('register') }}" class="mobile-nav-link">Register</a>
+                    <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
+                {% endif %}
+            </nav>
+            
+            <!-- Categories section -->
+            <div class="mobile-nav-footer">
+                <div class="mobile-nav-section">
+                    <h3>Categories</h3>
+                    {% if categories %}
+                        {% for cat in categories %}
+                            <a href="{{ url_for('search', category=cat['category']) }}" class="mobile-category-link">
+                                {{ cat['category'] }}
+                            </a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Background overlay (hidden by default) -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="toggleMobileMenu()"></div>
+    
+    <!-- Notification container -->
+    <div class="notification-container" id="notificationContainer"></div>
+    
+    {% block content %}{% endblock %}
+
+    <script>
+    // Hamburger menu functionality
+    function toggleMobileMenu() {
+        const drawer = document.getElementById('mobileNavDrawer');
+        const overlay = document.getElementById('mobileNavOverlay');
+        const hamburgerBtn = document.querySelector('.hamburger-btn');
+        const body = document.body;
+        
+        // Toggle active classes
+        drawer.classList.toggle('active');
+        overlay.classList.toggle('active');
+        hamburgerBtn.classList.toggle('active');
+        
+        // Toggle body scroll lock using CSS class
+        const isOpen = drawer.classList.contains('active');
+        if (isOpen) {
+            body.classList.add('menu-open');
+            body.setAttribute('aria-hidden', 'true');
+        } else {
+            body.classList.remove('menu-open');
+            body.removeAttribute('aria-hidden');
+        }
+        
+        // Focus management
+        if (isOpen) {
+            // Move focus to close button when menu opens
+            setTimeout(() => {
+                document.querySelector('.close-nav-btn').focus();
+            }, 100);
+            
+            // Announce to screen readers
+            announceToScreenReader('Navigation menu opened');
+        } else {
+            // Return focus to hamburger button when menu closes
+            hamburgerBtn.focus();
+            
+            // Announce to screen readers
+            announceToScreenReader('Navigation menu closed');
+        }
+    }
+
+    // Close menu when pressing Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const drawer = document.getElementById('mobileNavDrawer');
+            if (drawer.classList.contains('active')) {
+                toggleMobileMenu();
+            }
+        }
+    });
+
+    // Close menu when window is resized beyond mobile breakpoint
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth > 768) {
+                const drawer = document.getElementById('mobileNavDrawer');
+                const overlay = document.getElementById('mobileNavOverlay');
+                const hamburgerBtn = document.querySelector('.hamburger-btn');
+                const body = document.body;
+                
+                if (drawer.classList.contains('active')) {
+                    // Close menu and clean up
+                    drawer.classList.remove('active');
+                    overlay.classList.remove('active');
+                    hamburgerBtn.classList.remove('active');
+                    body.classList.remove('menu-open');
+                    body.removeAttribute('aria-hidden');
+                }
+            }
+        }, 250);
+    });
+
+    // Screen reader announcement helper
+    function announceToScreenReader(message) {
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.setAttribute('aria-atomic', 'true');
+        announcement.className = 'sr-only';
+        announcement.textContent = message;
+        
+        document.body.appendChild(announcement);
+        
+        setTimeout(() => {
+            document.body.removeChild(announcement);
+        }, 1000);
+    }
+
+    // Add screen reader only styles if not already present
+    if (!document.querySelector('style[data-sr-only]')) {
+        const style = document.createElement('style');
+        style.setAttribute('data-sr-only', '');
+        style.textContent = `
+            .sr-only {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Notification System
+    function showNotification(message, type = 'success') {
+        const container = document.getElementById('notificationContainer');
+        if (!container) return;
+        
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        
+        // Set icon and color based on type
+        let icon = '✓';
+        let background = 'linear-gradient(135deg, #28a745, #20c997)';
+        
+        if (type === 'error') {
+            icon = '✗';
+            background = 'linear-gradient(135deg, #dc3545, #c82333)';
+        } else if (type === 'info') {
+            icon = 'ℹ';
+            background = 'linear-gradient(135deg, #17a2b8, #138496)';
+        } else if (type === 'warning') {
+            icon = '⚠';
+            background = 'linear-gradient(135deg, #ffc107, #e0a800)';
+        }
+        
+        notification.style.background = background;
+        notification.innerHTML = `
+            <span class="notification-icon">${icon}</span>
+            <span class="notification-message">${message}</span>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Trigger animation
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Auto hide after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            notification.classList.add('hide');
+            
+            // Remove from DOM after animation
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // Enhanced form submission with notifications
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle add to cart forms
+        const addToCartForms = document.querySelectorAll('form[action*="add-to-cart"]');
+        addToCartForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn ? submitBtn.textContent : '';
+                
+                // Disable button and show loading
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Adding...';
+                }
+                
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message || 'Added to cart!', 'success');
+                        
+                        // Update cart count if available
+                        const cartCount = document.querySelector('.cart-count');
+                        if (cartCount && data.quantity) {
+                            const currentCount = parseInt(cartCount.textContent) || 0;
+                            cartCount.textContent = currentCount + (data.quantity || 1);
+                        }
+                        
+                        // Update button state
+                        if (submitBtn) {
+                            submitBtn.textContent = 'Added!';
+                            setTimeout(() => {
+                                submitBtn.textContent = originalText;
+                                submitBtn.disabled = false;
+                            }, 1000);
+                        }
+                    } else {
+                        showNotification(data.error || 'Failed to add item', 'error');
+                        if (submitBtn) {
+                            submitBtn.textContent = originalText;
+                            submitBtn.disabled = false;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Network error. Please try again.', 'error');
+                    if (submitBtn) {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                    }
+                });
+            });
+        });
+        
+        // Handle other form submissions with fallback notifications
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (!form.matches('[action*="add-to-cart"]')) {
+                form.addEventListener('submit', function() {
+                    // For non-AJAX forms, show a subtle notification on page load
+                    setTimeout(() => {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const flashMessage = urlParams.get('flash') || 
+                                         document.querySelector('.flash-message')?.textContent;
+                        
+                        if (flashMessage && flashMessage.includes('success')) {
+                            showNotification('Action completed successfully', 'success');
+                        }
+                    }, 100);
+                });
+            }
+        });
+    });
+
+    // Existing clickable card functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        const clickable = document.querySelector('.clickable-card');
+        if (clickable) {
+            clickable.addEventListener('click', function (e) {
+                // If the click originated from a form control or link, do nothing
+                const tag = e.target.tagName.toLowerCase();
+                if (tag === 'button' || tag === 'a' || e.target.closest('form')) {
+                    return;
+                }
+                // Navigate based on the data attribute
+                const href = clickable.dataset.href;
+                const productId = clickable.dataset.productId;
+                
+                if (href) {
+                    // For shopping cart card and other navigation cards
+                    window.location.href = href;
+                } else if (productId) {
+                    // For product cards
+                    window.location.href = `/product/${productId}`;
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>

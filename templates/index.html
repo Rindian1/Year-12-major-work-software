@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Dashboard{% endblock %}
+
+{% block content %}
+    <section class="welcome-section">
+        {% if current_user.is_authenticated %}
+            <h1>Welcome {{ current_user.username }}!</h1>
+        {% else %}
+            <h1>Welcome to Guitar Store!</h1>
+            <p><a href="{{ url_for('login') }}">Login</a> or <a href="{{ url_for('register') }}">Register</a> to create your shopping list</p>
+        {% endif %}
+    </section>
+
+    <main class="dashboard">
+        <div class="card {% if current_user.is_authenticated %}clickable-card{% endif %}" {% if current_user.is_authenticated %}data-href="{{ url_for('shopping_cart') }}"{% endif %}>
+            <noscript>
+                <!-- Fallback link for no JavaScript -->
+                <div style="margin-bottom: 15px; text-align: right;">
+                    <a href="{{ url_for('shopping_cart') }}" style="background: #f67280; color: white; padding: 8px 16px; text-decoration: none; border-radius: 20px; font-size: 14px; font-weight: 500;">
+                        🛒 View Full Shopping Cart
+                    </a>
+                </div>
+            </noscript>
+            <h2>Shopping list</h2>
+            <div class="card-header">
+                <span>Item</span>
+                <span>Cost</span>
+            </div>
+            <div class="card-content">
+                {% if current_user.is_authenticated %}
+                    {% if cart_items and cart_items|length > 0 %}
+                        {% for item in cart_items %}
+                        <div class="item-row">
+                            <span class="item-name">{{ item.name }}</span>
+                            <span>
+                                ${{ '%.2f'|format(item.price or 0) }}
+                                <form style="display:inline" method="post" action="{{ url_for('remove_item', item_id=item.id) }}">
+                                    <button type="submit">Remove</button>
+                                </form>
+                            </span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="item-row">
+                            <span class="item-name">No items yet</span>
+                            <span>$0.00</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="item-row">
+                        <span class="item-name">Please login to view your shopping list</span>
+                        <span><a href="{{ url_for('login') }}">Login</a></span>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="total-cost">Total: ${{ '%.2f'|format(cart_total or 0) }}</div>
+        </div>
+
+        <div class="card">
+            <h2>Recently viewed</h2>
+            <div class="card-header">
+                <span>Item</span>
+                <span>Details</span>
+            </div>
+            <div class="card-content">
+                {% if current_user.is_authenticated and recently_viewed %}
+                    {% for product in recently_viewed %}
+                    <div class="item-row">
+                        <span class="item-name">{{ product.name }}</span>
+                        <a href="{{ url_for('product_detail', product_id=product.id) }}" class="item-link">View Details</a>
+                    </div>
+                    {% endfor %}
+                {% elif current_user.is_authenticated %}
+                    <div class="item-row">
+                        <span class="item-name">No recently viewed items</span>
+                        <span><a href="{{ url_for('search') }}">Browse Products</a></span>
+                    </div>
+                {% else %}
+                    <div class="item-row">
+                        <span class="item-name">Please login to view recently viewed items</span>
+                        <span><a href="{{ url_for('login') }}">Login</a></span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Cart{% endblock %}
+
+{% block body_class %}shopping-cart-page{% endblock %}
+
+{% block content %}
+    <main class="cart-main" role="main" aria-label="Shopping Cart Main Content">
+        <h1 class="cart-title">Shopping Cart</h1>
+
+        {% if cart_items and cart_items|length > 0 %}
+            <div class="cart-container">
+                <!-- Left side: Cart items -->
+                <div class="cart-items-section" role="list" aria-label="Shopping Cart Items List">
+                    <!-- Column Headers -->
+                    <div class="cart-headers">
+                        <div class="header-item">Item</div>
+                        <div class="header-cost">Cost</div>
+                    </div>
+                    
+                    {% for item in cart_items %}
+                        <div class="cart-item-card" role="listitem" aria-label="Cart item {{ item.name }}">
+                            <div class="cart-item-left">
+                                <div class="cart-item-image">
+                                    <img src="{{ item.image_url or url_for('static', filename='Images/FILLER.png') }}" alt="{{ item.name }}" />
+                                </div>
+                                <div class="cart-item-info">
+                                    <h3 class="cart-item-name">{{ item.name }}</h3>
+                                    <div class="quantity-controls">
+                                        <span>Qty:</span>
+                                        <div>
+                                            <button type="button" class="qty-decrease" data-item-id="{{ item.id }}">−</button>
+                                            <input type="number" id="qty-{{ item.id }}" value="{{ item.quantity or 1 }}" min="1" readonly>
+                                            <button type="button" class="qty-increase" data-item-id="{{ item.id }}">+</button>
+                                        </div>
+                                    </div>
+                                    <form method="post" action="{{ url_for('remove_item', item_id=item.id) }}" class="remove-form" onsubmit="return confirm('Are you sure you want to remove this item?');">
+                                        <button type="submit" class="btn-remove-inline" aria-label="Remove {{ item.name }} from cart">
+                                            Remove
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="cart-item-price">
+                                <div class="item-price-per-unit">${{ '%.2f'|format(item.price or 0) }} each</div>
+                                <div class="item-total">
+                                    ${{ '%.2f'|format((item.price or 0) * (item.quantity or 1)) }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <!-- Total Price Row -->
+                    <div class="cart-total-row">
+                        <span class="total-label">Total Price:</span>
+                        <span class="total-amount">${{ '%.2f'|format(cart_total or 0) }}</span>
+                    </div>
+                </div>
+
+                <!-- Right side: Summary/Actions -->
+                <aside class="cart-sidebar" aria-label="Cart Actions" role="complementary">
+                    <div class="sidebar-content">
+                        <div class="sidebar-total">
+                            <span class="sidebar-total-label">Subtotal</span>
+                            <span class="sidebar-total-amount">${{ '%.2f'|format(cart_total or 0) }}</span>
+                        </div>
+                        
+                        <div class="sidebar-actions">
+                            <button class="btn btn-checkout-full" disabled aria-disabled="true" title="Checkout coming soon">
+                                Proceed to Checkout
+                            </button>
+                            <a href="{{ url_for('search') }}" class="btn btn-continue-shopping" role="button">
+                                Continue Shopping
+                            </a>
+                        </div>
+
+                        <!-- Add Item Form in Sidebar -->
+                    </div>
+                </aside>
+            </div>
+        {% else %}
+            <section class="empty-cart-message" role="region" aria-live="polite" aria-label="Empty Cart Message">
+                <div class="empty-cart-icon">🛒</div>
+                <p>Your cart is currently empty.</p>
+                <a href="{{ url_for('search') }}" class="btn btn-start-shopping" role="button">
+                    Start Shopping
+                </a>
+            </section>
+        {% endif %}
+    </main>
+
+<script>
+function updateCartItemQuantity(itemId, change) {
+    const qtyInput = document.getElementById(`qty-${itemId}`);
+    const currentQty = parseInt(qtyInput.value) || 1;
+    const newQty = Math.max(1, currentQty + change);
+    
+    // Show loading state
+    qtyInput.style.opacity = '0.5';
+    
+    // Send update request
+    fetch('/update-cart-quantity', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `item_id=${itemId}&quantity=${newQty}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            qtyInput.value = newQty;
+            
+            // Update the item total price
+            const itemCard = qtyInput.closest('.cart-item-card');
+            const itemPrice = parseFloat(itemCard.querySelector('.item-price-per-unit').textContent.replace('$', ''));
+            const newTotal = itemPrice * newQty;
+            itemCard.querySelector('.item-total').textContent = `$${newTotal.toFixed(2)}`;
+            
+            // Update cart total
+            document.querySelector('.total-amount').textContent = `$${data.new_cart_total.toFixed(2)}`;
+            document.querySelector('.sidebar-total-amount').textContent = `$${data.new_cart_total.toFixed(2)}`;
+            
+            // Update cart count in header
+            const cartCountElement = document.querySelector('.cart-count');
+            if (cartCountElement) {
+                // Recalculate total items
+                const allQtys = Array.from(document.querySelectorAll('[id^="qty-"]')).map(input => parseInt(input.value) || 1);
+                const totalItems = allQtys.reduce((sum, qty) => sum + qty, 0);
+                cartCountElement.textContent = totalItems;
+            }
+        } else {
+            alert(data.error || 'Failed to update quantity');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating quantity:', error);
+        alert('Error updating quantity');
+    })
+    .finally(() => {
+        qtyInput.style.opacity = '1';
+    });
+}
+
+// Add event listeners for quantity buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle decrease buttons
+    document.querySelectorAll('.qty-decrease').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            updateCartItemQuantity(parseInt(itemId), -1);
+        });
+    });
+    
+    // Handle increase buttons
+    document.querySelectorAll('.qty-increase').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            updateCartItemQuantity(parseInt(itemId), 1);
+        });
+    });
+});
+</script>
+{% endblock %}
