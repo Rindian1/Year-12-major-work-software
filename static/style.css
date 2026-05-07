@@ -8,6 +8,584 @@ body {
   color: #222;
 }
 
+/* Recommendations Panel Styles */
+.recommendations-card {
+  position: relative;
+  min-height: 400px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(196, 63, 86, 0.12);
+  transition: all 0.3s ease;
+}
+
+.recommendations-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px 15px 25px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.recommendations-card .card-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  color: #b7374a;
+}
+
+.refresh-btn:hover {
+  background: #f8f8f8;
+  transform: rotate(180deg);
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #b7374a;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  padding: 0 25px 20px 25px;
+}
+
+.recommendation-item {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.recommendation-item.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.recommendation-item:hover {
+  background: #f5f5f5;
+  box-shadow: 0 4px 12px rgba(196, 63, 86, 0.1);
+  transform: translateY(-2px);
+}
+
+.recommendation-image {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.recommendation-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.match-score {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #4caf50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.recommendation-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.recommendation-name {
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.recommendation-category {
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+  color: #b7374a;
+  font-weight: 500;
+}
+
+.recommendation-price {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #b7374a;
+}
+
+.recommendation-reason {
+  font-size: 0.8rem;
+  color: #666;
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.recommendation-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 100px;
+}
+
+.view-details-btn, .add-to-cart-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.view-details-btn {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.view-details-btn:hover {
+  background: #e0e0e0;
+}
+
+.add-to-cart-btn {
+  background: linear-gradient(45deg, #f67280, #f79489);
+  color: white;
+}
+
+.add-to-cart-btn:hover {
+  background: linear-gradient(45deg, #f56270, #f68479);
+  transform: translateY(-1px);
+}
+
+.recommendation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 25px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  border-radius: 0 0 16px 16px;
+}
+
+.view-all-btn, .update-preferences-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-all-btn {
+  background: #f67280;
+  color: white;
+}
+
+.view-all-btn:hover {
+  background: #f56270;
+}
+
+.update-preferences-btn {
+  background: transparent;
+  color: #b7374a;
+  border: 1px solid #b7374a;
+}
+
+.update-preferences-btn:hover {
+  background: #b7374a;
+  color: white;
+}
+
+.no-recommendations, .recommendations-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.no-recommendations p, .recommendations-error p {
+  margin: 0 0 15px 0;
+  font-size: 1rem;
+}
+
+/* Responsive Design for Recommendations */
+@media (max-width: 768px) {
+  .recommendations-grid {
+    grid-template-columns: 1fr;
+    padding: 0 15px 15px 15px;
+  }
+  
+  .recommendation-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .recommendation-image {
+    width: 100%;
+    height: 120px;
+  }
+  
+  .recommendation-actions {
+    flex-direction: row;
+    min-width: auto;
+  }
+  
+  .recommendation-footer {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .view-all-btn, .update-preferences-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .recommendations-card .card-header {
+    padding: 15px 20px 10px 20px;
+  }
+  
+  .recommendations-card .card-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .recommendation-item {
+    padding: 12px;
+  }
+  
+  .recommendation-name {
+    font-size: 0.9rem;
+  }
+  
+  .recommendation-price {
+    font-size: 1rem;
+  }
+}
+
+/* Survey Styles */
+.survey-section {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  margin-top: 20px;
+  box-shadow: 0 8px 20px rgba(196, 63, 86, 0.12);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.survey-section h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.survey-subtitle {
+  margin: 0 0 30px 0;
+  color: #666;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.survey-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.survey-question {
+  margin-bottom: 25px;
+}
+
+.survey-label {
+  display: block;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.radio-group, .checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.radio-option, .checkbox-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 25px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.radio-option:hover, .checkbox-option:hover {
+  border-color: #b7374a;
+  background: #fafafa;
+}
+
+.radio-option input[type="radio"],
+.checkbox-option input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.radio-custom, .checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  margin-right: 10px;
+  position: relative;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.checkbox-custom {
+  border-radius: 4px;
+}
+
+.radio-option input[type="radio"]:checked + .radio-custom,
+.checkbox-option input[type="checkbox"]:checked + .checkbox-custom {
+  border-color: #b7374a;
+  background: #b7374a;
+}
+
+.radio-option input[type="radio"]:checked + .radio-custom::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.checkbox-option input[type="checkbox"]:checked + .checkbox-custom::after {
+  content: '✓';
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.radio-option input[type="radio"]:checked ~ .radio-text,
+.checkbox-option input[type="checkbox"]:checked ~ .checkbox-text {
+  color: #b7374a;
+  font-weight: 600;
+}
+
+.radio-text, .checkbox-text {
+  color: #333;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.survey-select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #333;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.survey-select:focus {
+  outline: none;
+  border-color: #b7374a;
+  box-shadow: 0 0 0 3px rgba(183, 55, 74, 0.1);
+}
+
+.survey-progress {
+  margin: 30px 0 20px 0;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f67280, #b7374a);
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.survey-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.survey-actions .btn {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.survey-actions .btn-primary {
+  background: linear-gradient(45deg, #f67280, #f79489);
+  color: white;
+  flex: 1;
+}
+
+.survey-actions .btn-primary:hover {
+  background: linear-gradient(45deg, #f56270, #f68479);
+  transform: translateY(-1px);
+}
+
+.survey-actions .btn-secondary {
+  background: transparent;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+
+.survey-actions .btn-secondary:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
+}
+
+/* Responsive Survey Design */
+@media (max-width: 768px) {
+  .survey-section {
+    padding: 20px;
+    margin-top: 15px;
+  }
+  
+  .survey-section h3 {
+    font-size: 1.3rem;
+  }
+  
+  .radio-group, .checkbox-group {
+    gap: 10px;
+  }
+  
+  .radio-option, .checkbox-option {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  .survey-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .survey-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .survey-section {
+    padding: 15px;
+  }
+  
+  .survey-section h3 {
+    font-size: 1.2rem;
+  }
+  
+  .radio-group, .checkbox-group {
+    flex-direction: column;
+  }
+  
+  .radio-option, .checkbox-option {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 header {
   background-color: #e67e50;
   padding: 15px 20px;

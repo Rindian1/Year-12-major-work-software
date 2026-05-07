@@ -58,6 +58,11 @@
     </noscript>
 </head>
 <body class="homepage {% block body_class %}{% endblock %}">
+    {% if current_user.is_authenticated %}
+    <script>
+        window.currentUserId = {{ current_user.id|tojson }};
+    </script>
+    {% endif %}
     <noscript>
         <div class="no-js-warning">
             ⚠️ JavaScript is disabled. Some features may be limited, but you can still browse and shop!
@@ -504,7 +509,369 @@
                 }
             });
         }
+        
+        // Load recommendations if user is authenticated
+        loadRecommendations();
     });
+
+    // Recommendations Panel JavaScript
+    function loadRecommendations() {
+        const recommendationsGrid = document.getElementById('recommendationsGrid');
+        const loadingSpinner = document.getElementById('recommendationsLoading');
+        
+        if (!recommendationsGrid || !loadingSpinner) return;
+        
+        // Show loading state
+        loadingSpinner.style.display = 'block';
+        recommendationsGrid.style.display = 'none';
+        
+        // Get current user ID (this should be available from the template)
+        const userId = getCurrentUserId();
+        
+        if (!userId) {
+            // Hide recommendations if no user
+            const recommendationsCard = document.querySelector('.recommendations-card');
+            if (recommendationsCard) {
+                recommendationsCard.style.display = 'none';
+            }
+            return;
+        }
+        
+        // Fetch recommendations from API
+        fetch(`/api/recommendations/${userId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load recommendations');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.recommendations && data.recommendations.length > 0) {
+                    renderRecommendations(data.recommendations);
+                } else {
+                    showNoRecommendations();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading recommendations:', error);
+                showRecommendationsError();
+            })
+            .finally(() => {
+                // Hide loading state
+                loadingSpinner.style.display = 'none';
+            });
+    }
+    
+    function renderRecommendations(recommendations) {
+        const recommendationsGrid = document.getElementById('recommendationsGrid');
+        if (!recommendationsGrid) return;
+        
+        // Clear existing content
+        recommendationsGrid.innerHTML = '';
+        
+        // Limit to 3 recommendations for dashboard view
+        const displayRecommendations = recommendations.slice(0, 3);
+        
+        displayRecommendations.forEach((product, index) => {
+            const productCard = createRecommendationCard(product, index);
+            recommendationsGrid.appendChild(productCard);
+        });
+        
+        // Show recommendations grid
+        recommendationsGrid.style.display = 'grid';
+    }
+    
+    function createRecommendationCard(product, index) {
+        const card = document.createElement('div');
+        card.className = 'recommendation-item';
+        card.innerHTML = `
+            <div class="recommendation-image">
+                <img src="${product.image_url || '/static/Images/FILLER.png'}" alt="${product.name}" 
+                     onerror="this.src='/static/Images/FILLER.png'">
+                <div class="match-score">${Math.round(product.score * 100)}% Match</div>
+            </div>
+            <div class="recommendation-info">
+                <h4 class="recommendation-name">${product.name}</h4>
+                <p class="recommendation-category">${product.category}</p>
+                <p class="recommendation-price">$${parseFloat(product.price || 0).toFixed(2)}</p>
+                <div class="recommendation-reason" title="${product.reason || 'Based on your preferences'}">
+                    Why recommended?
+                </div>
+            </div>
+            <div class="recommendation-actions">
+                <button class="view-details-btn" onclick="viewProduct(${product.id})">View Details</button>
+                <button class="add-to-cart-btn" onclick="addToCart(${product.id})">Add to Cart</button>
+            </div>
+        `;
+        
+        // Add staggered animation
+        setTimeout(() => {
+            card.classList.add('show');
+        }, index * 100);
+        
+        return card;
+    }
+    
+    function showNoRecommendations() {
+        const recommendationsGrid = document.getElementById('recommendationsGrid');
+        if (!recommendationsGrid) return;
+        
+        recommendationsGrid.innerHTML = `
+            <div class="no-recommendations">
+                <p>No recommendations available yet.</p>
+                <button class="update-preferences-btn" onclick="updateSurvey()">Complete Survey</button>
+            </div>
+        `;
+        recommendationsGrid.style.display = 'block';
+    }
+    
+    function showRecommendationsError() {
+        const recommendationsGrid = document.getElementById('recommendationsGrid');
+        if (!recommendationsGrid) return;
+        
+        recommendationsGrid.innerHTML = `
+            <div class="recommendations-error">
+                <p>Unable to load recommendations.</p>
+                <button class="refresh-btn" onclick="refreshRecommendations()">Try Again</button>
+            </div>
+        `;
+        recommendationsGrid.style.display = 'block';
+    }
+    
+    function refreshRecommendations() {
+        loadRecommendations();
+        showNotification('Refreshing recommendations...', 'info');
+    }
+    
+    function viewAllRecommendations() {
+        // Navigate to a full recommendations page or expand current view
+        window.location.href = '/recommendations';
+    }
+    
+    function updateSurvey() {
+        // Navigate to survey page or show modal
+        window.location.href = '/survey';
+    }
+    
+    function viewProduct(productId) {
+        window.location.href = `/product/${productId}`;
+    }
+    
+    function addToCart(productId) {
+        // Find the add to cart form for this product and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/add-to-cart/${productId}`;
+        form.style.display = 'none';
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    function getCurrentUserId() {
+        // This should be available from the template
+        // For now, we'll use a data attribute or global variable
+        return window.currentUserId || null;
+    }
+
+    // Survey JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show survey after successful registration
+        const urlParams = new URLSearchParams(window.location.search);
+        const showSurvey = urlParams.get('survey') === 'true';
+        
+        if (showSurvey) {
+            showSurveySection();
+        }
+        
+        // Initialize survey progress tracking
+        initializeSurveyProgress();
+        
+        // Handle survey form submission
+        const surveyForm = document.getElementById('surveyForm');
+        if (surveyForm) {
+            surveyForm.addEventListener('submit', handleSurveySubmit);
+        }
+    });
+    
+    function showSurveySection() {
+        const surveySection = document.getElementById('surveySection');
+        if (surveySection) {
+            surveySection.style.display = 'block';
+            // Smooth scroll to survey
+            surveySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+    
+    function initializeSurveyProgress() {
+        const surveyForm = document.getElementById('surveyForm');
+        if (!surveyForm) return;
+        
+        const inputs = surveyForm.querySelectorAll('input[type="radio"], input[type="checkbox"], select');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        function updateProgress() {
+            const totalQuestions = 4;
+            let answeredQuestions = 0;
+            
+            // Check skill level
+            const skillLevel = surveyForm.querySelector('input[name="skill_level"]:checked');
+            if (skillLevel) answeredQuestions++;
+            
+            // Check instrument type
+            const instrumentType = surveyForm.querySelector('input[name="instrument_type"]:checked');
+            if (instrumentType) answeredQuestions++;
+            
+            // Check preferred genres
+            const genres = surveyForm.querySelectorAll('input[name="preferred_genres"]:checked');
+            if (genres.length > 0) answeredQuestions++;
+            
+            // Check budget range
+            const budgetRange = surveyForm.querySelector('select[name="budget_range"]');
+            if (budgetRange && budgetRange.value) answeredQuestions++;
+            
+            const progress = Math.round((answeredQuestions / totalQuestions) * 100);
+            
+            if (progressFill) {
+                progressFill.style.width = progress + '%';
+            }
+            
+            if (progressText) {
+                progressText.textContent = progress + '% Complete';
+            }
+        }
+        
+        inputs.forEach(input => {
+            input.addEventListener('change', updateProgress);
+        });
+        
+        // Initial progress update
+        updateProgress();
+    }
+    
+    function handleSurveySubmit(e) {
+        e.preventDefault();
+        
+        const form = e.target;
+        const formData = new FormData(form);
+        
+        // Validate required fields
+        const skillLevel = formData.get('skill_level');
+        const instrumentType = formData.get('instrument_type');
+        const budgetRange = formData.get('budget_range');
+        const genres = formData.getAll('preferred_genres');
+        
+        if (!skillLevel || !instrumentType || !budgetRange || genres.length === 0) {
+            showNotification('Please answer all questions to complete the survey', 'error');
+            return;
+        }
+        
+        // Prepare survey data
+        const surveyData = {
+            skill_level: skillLevel,
+            instrument_type: instrumentType,
+            preferred_genres: genres,
+            budget_range: budgetRange
+        };
+        
+        // Submit survey data
+        submitSurveyData(surveyData);
+    }
+    
+    function submitSurveyData(surveyData) {
+        const submitBtn = document.querySelector('#surveyForm button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+        
+        fetch('/api/user/survey', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(surveyData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Survey completed successfully! Recommendations will be updated soon.', 'success');
+                
+                // Hide survey section after delay
+                setTimeout(() => {
+                    const surveySection = document.getElementById('surveySection');
+                    if (surveySection) {
+                        surveySection.style.display = 'none';
+                    }
+                    
+                    // Redirect to home or refresh recommendations
+                    if (window.location.pathname === '/register') {
+                        window.location.href = '/';
+                    } else {
+                        // Refresh recommendations if on dashboard
+                        if (typeof loadRecommendations === 'function') {
+                            loadRecommendations();
+                        }
+                    }
+                }, 2000);
+            } else {
+                showNotification(data.error || 'Failed to submit survey', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Survey submission error:', error);
+            showNotification('Network error. Please try again.', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        });
+    }
+    
+    function skipSurvey() {
+        if (confirm('You can always complete the survey later from your dashboard. Are you sure you want to skip?')) {
+            const surveySection = document.getElementById('surveySection');
+            if (surveySection) {
+                surveySection.style.display = 'none';
+            }
+            
+            // Redirect to home if on registration page
+            if (window.location.pathname === '/register') {
+                window.location.href = '/';
+            }
+        }
+    }
+    
+    // Function to show survey modal for existing users
+    function showSurveyModal() {
+        // This can be called from other pages to show the survey in a modal
+        const modal = document.createElement('div');
+        modal.className = 'survey-modal';
+        modal.innerHTML = `
+            <div class="survey-modal-content">
+                <div class="survey-modal-header">
+                    <h3>Complete Your Profile</h3>
+                    <button class="close-modal" onclick="closeSurveyModal()">×</button>
+                </div>
+                <div class="survey-modal-body">
+                    <p>Help us recommend the perfect gear for you by answering a few quick questions.</p>
+                    <!-- Survey form content would go here -->
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+    }
+    
+    function closeSurveyModal() {
+        const modal = document.querySelector('.survey-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
     </script>
 </body>
 </html>

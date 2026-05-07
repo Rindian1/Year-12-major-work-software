@@ -51,6 +51,144 @@
                 <button type="submit" class="btn btn-primary">Create Account</button>
             </form>
             
+            <!-- Guitar Survey Section -->
+            <div class="survey-section" id="surveySection" style="display: none;">
+                <h3>Help us recommend the perfect gear for you!</h3>
+                <p class="survey-subtitle">Answer 4 quick questions to get personalized recommendations</p>
+                
+                <form method="post" class="survey-form" id="surveyForm">
+                    <input type="hidden" name="survey_step" value="1">
+                    
+                    <!-- Question 1: Skill Level -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What's your guitar skill level?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="beginner" required>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Beginner</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="intermediate">
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Intermediate</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="advanced">
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Advanced</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="professional">
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Professional</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 2: Instrument Type -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What type of guitar do you play?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="acoustic" required>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Acoustic</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="electric">
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Electric</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="both">
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Both</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 3: Preferred Genres -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What music genres do you play? (Select all that apply)</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="rock">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Rock</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="blues">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Blues</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="jazz">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Jazz</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="classical">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Classical</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="metal">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Metal</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="pop">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Pop</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="country">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Country</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="folk">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Folk</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="indie">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Indie</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 4: Budget Range -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What's your typical budget range?</label>
+                        <select name="budget_range" class="survey-select" required>
+                            <option value="">Select your budget range</option>
+                            <option value="under_500">Under $500</option>
+                            <option value="500_1000">$500 - $1,000</option>
+                            <option value="1000_2000">$1,000 - $2,000</option>
+                            <option value="2000_5000">$2,000 - $5,000</option>
+                            <option value="over_5000">Over $5,000</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Survey Progress -->
+                    <div class="survey-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <span class="progress-text" id="progressText">0% Complete</span>
+                    </div>
+                    
+                    <!-- Survey Actions -->
+                    <div class="survey-actions">
+                        <button type="button" class="btn btn-secondary" onclick="skipSurvey()">Skip for now</button>
+                        <button type="submit" class="btn btn-primary">Complete Survey</button>
+                    </div>
+                </form>
+            </div>
+            
             <div class="auth-links">
                 <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
             </div>
