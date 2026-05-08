@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Preferences Survey - Guitar Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="homepage">
+    <header>
+        <!-- Left side: Home and Hamburger icons together -->
+        <div class="header-left">
+            <a href="{{ url_for('home') }}" class="home-icon">
+                <img src="{{ url_for('static', filename='Images/Logo.png') }}" alt="Guitar Store Logo" class="logo-img">
+            </a>
+            <button class="hamburger" id="hamburger">☰</button>
+        </div>
+        
+        <!-- Center: Search bar (visible on larger screens) -->
+        <div class="header-center">
+            <form action="{{ url_for('search') }}" method="GET" class="search-form">
+                <input type="text" name="q" placeholder="Search guitars, amps, effects..." class="search-input" value="{{ request.args.get('q', '') }}">
+                <button type="submit" class="search-btn">🔍</button>
+            </form>
+        </div>
+        
+        <!-- Right side: Account and Cart -->
+        <div class="header-right">
+            {% if current_user.is_authenticated %}
+                <div class="account-dropdown">
+                    <button class="account-btn" id="accountBtn">👤 {{ current_user.username }}</button>
+                    <div class="dropdown-content" id="accountDropdown">
+                        <a href="{{ url_for('home') }}">Dashboard</a>
+                        <a href="{{ url_for('survey') }}">Update Preferences</a>
+                        <form method="POST" action="{{ url_for('logout') }}">
+                            <button type="submit" class="logout-btn">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="login-btn">Login</a>
+                <a href="{{ url_for('register') }}" class="register-btn">Register</a>
+            {% endif %}
+            
+            <a href="{{ url_for('shopping_cart') }}" class="cart-icon">
+                🛒
+                {% if cart_count > 0 %}
+                    <span class="cart-count">{{ cart_count }}</span>
+                {% endif %}
+            </a>
+        </div>
+    </header>
+
+    <main class="survey-main">
+        <div class="survey-container">
+            <div class="survey-header">
+                <h1>Guitar Preferences Survey</h1>
+                <p class="survey-description">Help us recommend the perfect gear for your playing style and needs</p>
+            </div>
+
+            <div class="survey-section">
+                <form method="post" class="survey-form" id="surveyForm">
+                    <input type="hidden" name="survey_step" value="1">
+                    
+                    <!-- Question 1: Skill Level -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What's your guitar skill level?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="beginner" required 
+                                       {% if survey_data and survey_data.skill_level == 'beginner' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Beginner</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="intermediate"
+                                       {% if survey_data and survey_data.skill_level == 'intermediate' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Intermediate</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="advanced"
+                                       {% if survey_data and survey_data.skill_level == 'advanced' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Advanced</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="skill_level" value="professional"
+                                       {% if survey_data and survey_data.skill_level == 'professional' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Professional</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 2: Instrument Type -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What type of guitar do you play?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="acoustic" required
+                                       {% if survey_data and survey_data.instrument_type == 'acoustic' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Acoustic</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="electric"
+                                       {% if survey_data and survey_data.instrument_type == 'electric' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Electric</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="instrument_type" value="both"
+                                       {% if survey_data and survey_data.instrument_type == 'both' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-text">Both</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 3: Preferred Genres -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What music genres do you play? (Select all that apply)</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="rock"
+                                       {% if survey_data and 'rock' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Rock</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="blues"
+                                       {% if survey_data and 'blues' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Blues</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="jazz"
+                                       {% if survey_data and 'jazz' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Jazz</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="classical"
+                                       {% if survey_data and 'classical' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Classical</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="metal"
+                                       {% if survey_data and 'metal' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Metal</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="pop"
+                                       {% if survey_data and 'pop' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Pop</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="country"
+                                       {% if survey_data and 'country' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Country</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="folk"
+                                       {% if survey_data and 'folk' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Folk</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="preferred_genres" value="indie"
+                                       {% if survey_data and 'indie' in survey_data.preferred_genres %}checked{% endif %}>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Indie</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Question 4: Budget Range -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What's your typical budget range?</label>
+                        <select name="budget_range" class="survey-select" required>
+                            <option value="">Select your budget range</option>
+                            <option value="under_500" {% if survey_data and survey_data.budget_range == 'under_500' %}selected{% endif %}>Under $500</option>
+                            <option value="500_1000" {% if survey_data and survey_data.budget_range == '500_1000' %}selected{% endif %}>$500 - $1,000</option>
+                            <option value="1000_2000" {% if survey_data and survey_data.budget_range == '1000_2000' %}selected{% endif %}>$1,000 - $2,000</option>
+                            <option value="2000_5000" {% if survey_data and survey_data.budget_range == '2000_5000' %}selected{% endif %}>$2,000 - $5,000</option>
+                            <option value="over_5000" {% if survey_data and survey_data.budget_range == 'over_5000' %}selected{% endif %}>Over $5,000</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Survey Progress -->
+                    <div class="survey-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <span class="progress-text" id="progressText">0% Complete</span>
+                    </div>
+                    
+                    <!-- Survey Actions -->
+                    <div class="survey-actions">
+                        <a href="{{ url_for('home') }}" class="btn btn-secondary">Skip for now</a>
+                        <button type="submit" class="btn btn-primary">Save Preferences</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <script>
+        // Survey JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize survey progress tracking
+            initializeSurveyProgress();
+            
+            // Handle survey form submission
+            const surveyForm = document.getElementById('surveyForm');
+            if (surveyForm) {
+                surveyForm.addEventListener('submit', handleSurveySubmit);
+            }
+        });
+        
+        function initializeSurveyProgress() {
+            const surveyForm = document.getElementById('surveyForm');
+            if (!surveyForm) return;
+            
+            const inputs = surveyForm.querySelectorAll('input[type="radio"], input[type="checkbox"], select');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            function updateProgress() {
+                const totalQuestions = 4;
+                let answeredQuestions = 0;
+                
+                // Check skill level
+                const skillLevel = surveyForm.querySelector('input[name="skill_level"]:checked');
+                if (skillLevel) answeredQuestions++;
+                
+                // Check instrument type
+                const instrumentType = surveyForm.querySelector('input[name="instrument_type"]:checked');
+                if (instrumentType) answeredQuestions++;
+                
+                // Check preferred genres
+                const genres = surveyForm.querySelectorAll('input[name="preferred_genres"]:checked');
+                if (genres.length > 0) answeredQuestions++;
+                
+                // Check budget range
+                const budgetRange = surveyForm.querySelector('select[name="budget_range"]');
+                if (budgetRange && budgetRange.value) answeredQuestions++;
+                
+                const progress = Math.round((answeredQuestions / totalQuestions) * 100);
+                
+                if (progressFill) {
+                    progressFill.style.width = progress + '%';
+                }
+                
+                if (progressText) {
+                    progressText.textContent = progress + '% Complete';
+                }
+            }
+            
+            inputs.forEach(input => {
+                input.addEventListener('change', updateProgress);
+            });
+            
+            // Initial progress update
+            updateProgress();
+        }
+        
+        function handleSurveySubmit(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            // Validate required fields
+            const skillLevel = formData.get('skill_level');
+            const instrumentType = formData.get('instrument_type');
+            const budgetRange = formData.get('budget_range');
+            const genres = formData.getAll('preferred_genres');
+            
+            if (!skillLevel || !instrumentType || !budgetRange || genres.length === 0) {
+                showNotification('Please answer all questions to complete the survey', 'error');
+                return;
+            }
+            
+            // Prepare survey data
+            const surveyData = {
+                skill_level: skillLevel,
+                instrument_type: instrumentType,
+                preferred_genres: genres,
+                budget_range: budgetRange
+            };
+            
+            // Submit survey data
+            submitSurveyData(surveyData);
+        }
+        
+        function submitSurveyData(surveyData) {
+            const submitBtn = document.querySelector('#surveyForm button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            fetch('/api/user/survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(surveyData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Survey completed successfully! Recommendations will be updated soon.', 'success');
+                    
+                    // Redirect to home after delay
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showNotification(data.error || 'Failed to submit survey', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Survey submission error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        }
+        
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

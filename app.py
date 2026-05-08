@@ -8,6 +8,7 @@ import os
 from flask import g 
 from flask import jsonify
 import json
+from datetime import datetime, timedelta
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from email_validator import validate_email, EmailNotValidError
@@ -743,8 +744,8 @@ def register():
                 (username, email, password_hash)
             )
             db.commit()
-            flash('Registration successful! Please log in.')
-            return redirect(url_for('login'))
+            flash('Registration successful! Please complete your survey to get personalized recommendations.')
+            return redirect(url_for('register', survey='true'))
         except sqlite3.IntegrityError as e:
             db.rollback()
             if 'UNIQUE constraint failed: users.username' in str(e):
@@ -796,6 +797,227 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/survey', methods=['GET', 'POST'])
+@login_required
+def survey():
+    """Survey page for updating user preferences"""
+    # Get cart count for template
+    cart_items = get_cart_items()
+    cart_count = len(cart_items)
+    
+    if request.method == 'GET':
+        # Check if user already has survey data
+        db = get_db()
+        existing_survey = db.execute('SELECT * FROM user_surveys WHERE user_id = ?', (current_user.id,)).fetchone()
+        
+        if existing_survey:
+            # Pre-fill form with existing data
+            survey_data = {
+                'skill_level': existing_survey['skill_level'],
+                'instrument_type': existing_survey['instrument_type'],
+                'preferred_genres': json.loads(existing_survey['preferred_genres']),
+                'budget_range': existing_survey['budget_range']
+            }
+            return render_template('survey.html', survey_data=survey_data, cart_count=cart_count)
+        else:
+            return render_template('survey.html', cart_count=cart_count)
+    
+    # Handle POST request (survey submission)
+    return redirect(url_for('home'))
+
+@app.route('/api/user/survey', methods=['POST'])
+@login_required
+def submit_survey():
+    """API endpoint for survey submission"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['skill_level', 'instrument_type', 'preferred_genres', 'budget_range']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+        
+        # Validate field values
+        valid_skill_levels = ['beginner', 'intermediate', 'advanced', 'professional']
+        valid_instrument_types = ['acoustic', 'electric', 'both']
+        valid_budget_ranges = ['under_500', '500_1000', '1000_2000', '2000_5000', 'over_5000']
+        valid_genres = ['rock', 'blues', 'jazz', 'classical', 'metal', 'pop', 'country', 'folk', 'indie']
+        
+        if data['skill_level'] not in valid_skill_levels:
+            return jsonify({'success': False, 'error': 'Invalid skill level'}), 400
+        
+        if data['instrument_type'] not in valid_instrument_types:
+            return jsonify({'success': False, 'error': 'Invalid instrument type'}), 400
+        
+        if data['budget_range'] not in valid_budget_ranges:
+            return jsonify({'success': False, 'error': 'Invalid budget range'}), 400
+        
+        # Validate genres
+        if not isinstance(data['preferred_genres'], list) or len(data['preferred_genres']) == 0:
+            return jsonify({'success': False, 'error': 'Preferred genres must be a non-empty array'}), 400
+        
+        for genre in data['preferred_genres']:
+            if genre not in valid_genres:
+                return jsonify({'success': False, 'error': f'Invalid genre: {genre}'}), 400
+        
+        # Save survey data
+        db = get_db()
+        
+        # Check if survey already exists for this user
+        existing_survey = db.execute('SELECT id FROM user_surveys WHERE user_id = ?', (current_user.id,)).fetchone()
+        
+        if existing_survey:
+            # Update existing survey
+            db.execute('''
+                UPDATE user_surveys 
+                SET skill_level = ?, instrument_type = ?, preferred_genres = ?, budget_range = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            ''', (data['skill_level'], data['instrument_type'], json.dumps(data['preferred_genres']), 
+                  data['budget_range'], current_user.id))
+        else:
+            # Insert new survey
+            db.execute('''
+                INSERT INTO user_surveys (user_id, skill_level, instrument_type, preferred_genres, budget_range)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (current_user.id, data['skill_level'], data['instrument_type'], 
+                  json.dumps(data['preferred_genres']), data['budget_range']))
+        
+        db.commit()
+        
+        return jsonify({'success': True, 'message': 'Survey completed successfully'})
+        
+    except Exception as e:
+        print(f"Survey submission error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to submit survey'}), 500
+
+@app.route('/api/recommendations/<int:user_id>')
+@login_required
+def get_recommendations(user_id):
+    """API endpoint for getting user recommendations"""
+    try:
+        # Check if user is requesting their own recommendations
+        if current_user.id != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        db = get_db()
+        
+        # Check if user has completed survey
+        user_survey = db.execute('SELECT * FROM user_surveys WHERE user_id = ?', (user_id,)).fetchone()
+        
+        if not user_survey:
+            return jsonify({'recommendations': [], 'message': 'Please complete the survey to get recommendations'})
+        
+        # Get cached recommendations first
+        cached_recommendations = db.execute('''
+            SELECT p.*, rc.score, rc.reason, rc.created_at
+            FROM recommendation_cache rc
+            JOIN products p ON rc.product_id = p.id
+            WHERE rc.user_id = ? AND rc.expires_at > CURRENT_TIMESTAMP
+            ORDER BY rc.score DESC
+            LIMIT 10
+        ''', (user_id,)).fetchall()
+        
+        if cached_recommendations:
+            recommendations = []
+            for rec in cached_recommendations:
+                recommendations.append({
+                    'id': rec['id'],
+                    'name': rec['name'],
+                    'category': rec['category'],
+                    'price': rec['price'],
+                    'image_url': rec['image_url'],
+                    'score': rec['score'],
+                    'reason': rec['reason'] or 'Based on your preferences'
+                })
+            return jsonify({'recommendations': recommendations})
+        
+        # If no cached recommendations, generate simple ones based on survey
+        # This is a basic implementation - you can replace with ML algorithms
+        survey_data = {
+            'skill_level': user_survey['skill_level'],
+            'instrument_type': user_survey['instrument_type'],
+            'preferred_genres': json.loads(user_survey['preferred_genres']),
+            'budget_range': user_survey['budget_range']
+        }
+        
+        # Simple recommendation logic based on survey
+        recommendations = generate_simple_recommendations(db, survey_data)
+        
+        # Cache recommendations for 24 hours
+        expires_at = datetime.now() + timedelta(hours=24)
+        
+        for rec in recommendations:
+            db.execute('''
+                INSERT INTO recommendation_cache 
+                (user_id, product_id, score, algorithm, reason, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, rec['id'], rec['score'], 'simple_survey_based', rec['reason'], expires_at))
+        
+        db.commit()
+        
+        return jsonify({'recommendations': recommendations})
+        
+    except Exception as e:
+        print(f"Recommendations error: {e}")
+        return jsonify({'error': 'Failed to load recommendations'}), 500
+
+def generate_simple_recommendations(db, survey_data):
+    """Generate simple recommendations based on survey data"""
+    recommendations = []
+    
+    # Get products matching user preferences
+    query = '''
+        SELECT * FROM products 
+        WHERE instrument_type = ? OR instrument_type = 'both'
+        AND skill_level = ? OR skill_level = 'beginner'
+    '''
+    
+    params = [survey_data['instrument_type'], survey_data['skill_level']]
+    
+    # Add budget filter
+    if survey_data['budget_range'] == 'under_500':
+        query += ' AND price < 500'
+    elif survey_data['budget_range'] == '500_1000':
+        query += ' AND price >= 500 AND price <= 1000'
+    elif survey_data['budget_range'] == '1000_2000':
+        query += ' AND price >= 1000 AND price <= 2000'
+    elif survey_data['budget_range'] == '2000_5000':
+        query += ' AND price >= 2000 AND price <= 5000'
+    elif survey_data['budget_range'] == 'over_5000':
+        query += ' AND price > 5000'
+    
+    query += ' ORDER BY RANDOM() LIMIT 5'
+    
+    products = db.execute(query, params).fetchall()
+    
+    for product in products:
+        score = 0.8  # Base score
+        
+        # Adjust score based on genre compatibility
+        product_genres = json.loads(product['genre_suitability']) if product['genre_suitability'] else []
+        common_genres = set(survey_data['preferred_genres']) & set(product_genres)
+        score += len(common_genres) * 0.05
+        
+        # Adjust score based on skill level match
+        if product['skill_level'] == survey_data['skill_level']:
+            score += 0.1
+        
+        recommendations.append({
+            'id': product['id'],
+            'name': product['name'],
+            'category': product['category'],
+            'price': product['price'],
+            'image_url': product['image_url'],
+            'score': min(score, 1.0),
+            'reason': f'Matches your {survey_data["instrument_type"]} preferences and {survey_data["skill_level"]} skill level'
+        })
+    
+    # Sort by score
+    recommendations.sort(key=lambda x: x['score'], reverse=True)
+    
+    return recommendations[:5]
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

@@ -537,8 +537,87 @@ body {
   border-color: #ccc;
 }
 
+/* Dedicated Survey Page Styles */
+.survey-main {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  padding: 20px;
+}
+
+.survey-container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(196, 63, 86, 0.12);
+  overflow: hidden;
+}
+
+.survey-header {
+  background: linear-gradient(45deg, #f67280, #b7374a);
+  color: white;
+  padding: 40px 30px;
+  text-align: center;
+}
+
+.survey-header h1 {
+  margin: 0 0 15px 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.survey-description {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.survey-container .survey-section {
+  padding: 40px 30px;
+  margin: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+.survey-container .survey-section h3 {
+  display: none;
+}
+
+.survey-container .survey-subtitle {
+  display: none;
+}
+
+.survey-container .survey-form {
+  max-width: 100%;
+}
+
 /* Responsive Survey Design */
 @media (max-width: 768px) {
+  .survey-main {
+    padding: 10px;
+  }
+  
+  .survey-container {
+    margin: 0;
+    border-radius: 0;
+  }
+  
+  .survey-header {
+    padding: 30px 20px;
+  }
+  
+  .survey-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .survey-description {
+    font-size: 1rem;
+  }
+  
+  .survey-container .survey-section {
+    padding: 30px 20px;
+  }
+  
   .survey-section {
     padding: 20px;
     margin-top: 15px;
@@ -568,6 +647,18 @@ body {
 }
 
 @media (max-width: 480px) {
+  .survey-header {
+    padding: 20px 15px;
+  }
+  
+  .survey-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .survey-container .survey-section {
+    padding: 20px 15px;
+  }
+  
   .survey-section {
     padding: 15px;
   }
