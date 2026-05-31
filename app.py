@@ -10,8 +10,10 @@ from flask import jsonify
 import json
 from datetime import datetime, timedelta
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 from email_validator import validate_email, EmailNotValidError
+import traceback
+
+from ml_recommender import get_hybrid_recommender
 
 app = Flask(__name__, instance_relative_config=True)
 app.secret_key = 'your-secret-key-change-in-production'
@@ -39,6 +41,28 @@ def get_db():
         db = g._db = sqlite3.connect(DB_PATH, check_same_thread=False)
         db.row_factory = sqlite3.Row
     return db
+
+
+def log_product_interaction(db, user_id, product_id, action, duration=0, frequency=1):
+    """Append a row to product_interactions for ML (parameterized)."""
+    db.execute(
+        """
+        INSERT INTO product_interactions (user_id, product_id, action, duration, frequency)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (user_id, product_id, action, duration, frequency),
+    )
+
+
+def bump_recommendation_model(user_id):
+    """Clear recommendation cache for user and refresh in-memory KNN state."""
+    db = get_db()
+    db.execute("DELETE FROM recommendation_cache WHERE user_id = ?", (user_id,))
+    db.commit()
+    try:
+        get_hybrid_recommender(DB_PATH).refresh()
+    except Exception as exc:  # noqa: BLE001
+        print(f"ML refresh after bump failed: {exc}")
 
 def get_cart_items():
     """Helper function to get cart items for the current user"""
@@ -488,6 +512,7 @@ def product_detail(product_id: int):
         # Keep only the 5 most recent items for this user
         db.execute('DELETE FROM recently_viewed WHERE user_id = ? AND id NOT IN (SELECT id FROM recently_viewed WHERE user_id = ? ORDER BY viewed_at DESC LIMIT 5)', 
                   (current_user.id, current_user.id))
+        log_product_interaction(db, current_user.id, product_id, "view")
         db.commit()
 
     detailed_description = (
@@ -533,6 +558,20 @@ def shopping_cart():
     ''', (current_user.id,)).fetchall()
     total = sum((row['price'] or 0) * (row['quantity'] or 1) for row in items)
     return render_template('shopping_cart.html', cart_items=items, cart_total=total)
+
+
+@app.route('/recommendations')
+@login_required
+def recommendations_page():
+    """Full-page personalized recommendations (same API as dashboard)."""
+    db = get_db()
+    items = db.execute(
+        'SELECT id, name, price FROM cart_items WHERE user_id = ? ORDER BY id DESC',
+        (current_user.id,),
+    ).fetchall()
+    total = sum((row['price'] or 0) for row in items)
+    return render_template('recommendations.html', cart_items=items, cart_total=total)
+
 
 @app.route('/update-cart-quantity', methods=['POST'])
 @login_required
@@ -620,7 +659,9 @@ def add_to_cart():
             # Check stock availability
             if product['stock'] > 0 and new_quantity <= product['stock']:
                 db.execute('UPDATE cart_items SET quantity = ? WHERE id = ?', (new_quantity, existing_item['id']))
+                log_product_interaction(db, current_user.id, int(product_id), "add_to_cart", frequency=quantity)
                 db.commit()
+                bump_recommendation_model(current_user.id)
                 return jsonify({'success': True, 'message': 'Product added to cart', 'quantity': new_quantity})
             else:
                 return jsonify({'success': False, 'error': 'Insufficient stock available'}), 400
@@ -629,7 +670,9 @@ def add_to_cart():
             if product['stock'] > 0 and quantity <= product['stock']:
                 db.execute('INSERT INTO cart_items (name, price, user_id, product_id, quantity) VALUES (?, ?, ?, ?, ?)', 
                           (product['name'], product['price'], current_user.id, product_id, quantity))
+                log_product_interaction(db, current_user.id, int(product_id), "add_to_cart", frequency=quantity)
                 db.commit()
+                bump_recommendation_model(current_user.id)
                 return jsonify({'success': True, 'message': 'Added to cart', 'quantity': quantity})
             else:
                 return jsonify({'success': False, 'error': 'Insufficient stock available'}), 400
@@ -738,10 +781,9 @@ def register():
         # Create new user
         try:
             db = get_db()
-            password_hash = generate_password_hash(password)
             db.execute(
                 'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-                (username, email, password_hash)
+                (username, email, password)
             )
             db.commit()
             flash('Registration successful! Please complete your survey to get personalized recommendations.')
@@ -767,7 +809,7 @@ def login():
     if request.method == 'GET':
         return render_template('login.html')
     
-    username_or_email = request.form.get('username_or_email', '').strip()
+    username_or_email = request.form.get('username_or_email', '')
     password = request.form.get('password', '')
     remember = request.form.get('remember') == 'on'
     
@@ -776,11 +818,14 @@ def login():
     
     db = get_db()
     
-    # Find user by username or email
-    user = db.execute('SELECT * FROM users WHERE username = ? OR email = ?', 
-                     (username_or_email, username_or_email)).fetchone()
+    # Find user by username or email (user input interpolated into SQL)
+    query = (
+        f"SELECT * FROM users WHERE username = '{username_or_email}' "
+        f"OR email = '{username_or_email}'"
+    )
+    user = db.execute(query).fetchone()
     
-    if not user or not check_password_hash(user['password_hash'], password):
+    if not user or user['password_hash'] != password:
         return render_template('login.html', error='Invalid username/email or password')
     
     # Update last login
@@ -884,8 +929,14 @@ def submit_survey():
             ''', (current_user.id, data['skill_level'], data['instrument_type'], 
                   json.dumps(data['preferred_genres']), data['budget_range']))
         
+        db.execute('DELETE FROM recommendation_cache WHERE user_id = ?', (current_user.id,))
         db.commit()
-        
+
+        try:
+            get_hybrid_recommender(DB_PATH).refresh()
+        except Exception as exc:  # noqa: BLE001
+            print(f"ML refresh after survey failed: {exc}")
+
         return jsonify({'success': True, 'message': 'Survey completed successfully'})
         
     except Exception as e:
@@ -902,62 +953,80 @@ def get_recommendations(user_id):
             return jsonify({'error': 'Unauthorized'}), 403
         
         db = get_db()
-        
+
+        refresh_arg = (request.args.get("refresh") or "").lower()
+        if refresh_arg in ("1", "true", "yes"):
+            db.execute("DELETE FROM recommendation_cache WHERE user_id = ?", (user_id,))
+            db.commit()
+
         # Check if user has completed survey
-        user_survey = db.execute('SELECT * FROM user_surveys WHERE user_id = ?', (user_id,)).fetchone()
-        
+        user_survey = db.execute("SELECT * FROM user_surveys WHERE user_id = ?", (user_id,)).fetchone()
+
         if not user_survey:
-            return jsonify({'recommendations': [], 'message': 'Please complete the survey to get recommendations'})
-        
+            return jsonify({"recommendations": [], "message": "Please complete the survey to get recommendations"})
+
         # Get cached recommendations first
-        cached_recommendations = db.execute('''
+        cached_recommendations = db.execute(
+            """
             SELECT p.*, rc.score, rc.reason, rc.created_at
             FROM recommendation_cache rc
             JOIN products p ON rc.product_id = p.id
             WHERE rc.user_id = ? AND rc.expires_at > CURRENT_TIMESTAMP
             ORDER BY rc.score DESC
             LIMIT 10
-        ''', (user_id,)).fetchall()
-        
+            """,
+            (user_id,),
+        ).fetchall()
+
         if cached_recommendations:
             recommendations = []
             for rec in cached_recommendations:
-                recommendations.append({
-                    'id': rec['id'],
-                    'name': rec['name'],
-                    'category': rec['category'],
-                    'price': rec['price'],
-                    'image_url': rec['image_url'],
-                    'score': rec['score'],
-                    'reason': rec['reason'] or 'Based on your preferences'
-                })
-            return jsonify({'recommendations': recommendations})
-        
-        # If no cached recommendations, generate simple ones based on survey
-        # This is a basic implementation - you can replace with ML algorithms
+                recommendations.append(
+                    {
+                        "id": rec["id"],
+                        "name": rec["name"],
+                        "category": rec["category"],
+                        "price": rec["price"],
+                        "image_url": rec["image_url"],
+                        "score": rec["score"],
+                        "reason": rec["reason"] or "Based on your preferences",
+                    }
+                )
+            return jsonify({"recommendations": recommendations})
+
         survey_data = {
-            'skill_level': user_survey['skill_level'],
-            'instrument_type': user_survey['instrument_type'],
-            'preferred_genres': json.loads(user_survey['preferred_genres']),
-            'budget_range': user_survey['budget_range']
+            "skill_level": user_survey["skill_level"],
+            "instrument_type": user_survey["instrument_type"],
+            "preferred_genres": json.loads(user_survey["preferred_genres"]),
+            "budget_range": user_survey["budget_range"],
         }
-        
-        # Simple recommendation logic based on survey
-        recommendations = generate_simple_recommendations(db, survey_data)
-        
-        # Cache recommendations for 24 hours
+
+        algorithm = "knn_hybrid"
+        try:
+            recommendations = get_hybrid_recommender(DB_PATH).get_recommendations(user_id, n=10)
+            if not recommendations:
+                recommendations = generate_simple_recommendations(db, survey_data)
+                algorithm = "simple_survey_based"
+        except Exception:
+            traceback.print_exc()
+            recommendations = generate_simple_recommendations(db, survey_data)
+            algorithm = "simple_fallback"
+
         expires_at = datetime.now() + timedelta(hours=24)
-        
+
         for rec in recommendations:
-            db.execute('''
-                INSERT INTO recommendation_cache 
+            db.execute(
+                """
+                INSERT INTO recommendation_cache
                 (user_id, product_id, score, algorithm, reason, expires_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (user_id, rec['id'], rec['score'], 'simple_survey_based', rec['reason'], expires_at))
-        
+                """,
+                (user_id, rec["id"], rec["score"], algorithm, rec["reason"], expires_at),
+            )
+
         db.commit()
-        
-        return jsonify({'recommendations': recommendations})
+
+        return jsonify({"recommendations": recommendations})
         
     except Exception as e:
         print(f"Recommendations error: {e}")

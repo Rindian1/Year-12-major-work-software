@@ -10,6 +10,7 @@ A full-featured e-commerce web application for guitar enthusiasts built with Fla
 - **Shopping Cart**: Add/remove items, quantity management with stock checking
 - **Personalized Dashboard**: Shopping list and recently viewed items
 - **Product Details**: Detailed product pages with descriptions and images
+- **Hybrid ML recommendations**: KNN user–user and item–item collaborative filtering plus content-based scoring from your survey and `product_interactions` (see `ml_recommender.py` and `YEAR 12 MAJOR WORK planning files/ML_IMPLEMENTATION_GUIDE.md`).
 - **Responsive Design**: Mobile-friendly interface with modern UI
 
 ## Quick Start
@@ -38,7 +39,7 @@ A full-featured e-commerce web application for guitar enthusiasts built with Fla
    venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+3. **Install dependencies** (includes Flask, scikit-learn, pandas, and numpy for hybrid recommendations)
    ```bash
    pip install -r requirements.txt
    ```

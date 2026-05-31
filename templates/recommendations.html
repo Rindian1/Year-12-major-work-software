@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Recommendations{% endblock %}
+
+{% block content %}
+    <section class="welcome-section">
+        <h1>Recommended for you</h1>
+        <p>Based on your survey, browsing, and what similar shoppers enjoy.</p>
+    </section>
+
+    <main class="dashboard">
+        <div class="card recommendations-card" style="max-width: 900px; margin: 0 auto;">
+            <div class="card-header">
+                <h2>All recommendations</h2>
+                <button class="refresh-btn" onclick="refreshRecommendations()" title="Refresh recommendations">🔄</button>
+            </div>
+            <div class="loading-spinner" id="recommendationsLoading">
+                <div class="spinner"></div>
+                <p>Finding perfect matches...</p>
+            </div>
+            <div class="recommendations-grid" id="recommendationsGrid" data-max-items="10" style="display: none;"></div>
+            <div class="recommendation-footer">
+                <button class="update-preferences-btn" onclick="updateSurvey()">Update Preferences</button>
+                <a href="{{ url_for('home') }}" class="view-all-btn" style="text-decoration:none; display:inline-block;">Back to dashboard</a>
+            </div>
+        </div>
+    </main>
+{% endblock %}

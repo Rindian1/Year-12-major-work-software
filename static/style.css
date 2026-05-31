@@ -166,6 +166,14 @@ body {
   text-decoration-style: dotted;
 }
 
+.recommendation-reason-snippet {
+  font-size: 0.78rem;
+  color: #555;
+  margin: 6px 0 0 0;
+  line-height: 1.35;
+  cursor: help;
+}
+
 .recommendation-actions {
   display: flex;
   flex-direction: column;

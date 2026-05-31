@@ -515,7 +515,8 @@
     });
 
     // Recommendations Panel JavaScript
-    function loadRecommendations() {
+    function loadRecommendations(options) {
+        const forceRefresh = options && options.forceRefresh;
         const recommendationsGrid = document.getElementById('recommendationsGrid');
         const loadingSpinner = document.getElementById('recommendationsLoading');
         
@@ -534,11 +535,16 @@
             if (recommendationsCard) {
                 recommendationsCard.style.display = 'none';
             }
+            loadingSpinner.style.display = 'none';
             return;
         }
         
+        const url = forceRefresh
+            ? `/api/recommendations/${userId}?refresh=true`
+            : `/api/recommendations/${userId}`;
+
         // Fetch recommendations from API
-        fetch(`/api/recommendations/${userId}`)
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load recommendations');
@@ -569,8 +575,9 @@
         // Clear existing content
         recommendationsGrid.innerHTML = '';
         
-        // Limit to 3 recommendations for dashboard view
-        const displayRecommendations = recommendations.slice(0, 3);
+        // Limit items: dashboard uses data-max-items (default 3), full page uses 10
+        const maxItems = parseInt(recommendationsGrid.dataset.maxItems || '3', 10) || 3;
+        const displayRecommendations = recommendations.slice(0, maxItems);
         
         displayRecommendations.forEach((product, index) => {
             const productCard = createRecommendationCard(product, index);
@@ -581,22 +588,31 @@
         recommendationsGrid.style.display = 'grid';
     }
     
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function createRecommendationCard(product, index) {
+        const fullReason = product.reason || 'Based on your preferences';
+        const snippet = fullReason.length > 56 ? fullReason.slice(0, 53) + '…' : fullReason;
         const card = document.createElement('div');
         card.className = 'recommendation-item';
         card.innerHTML = `
             <div class="recommendation-image">
-                <img src="${product.image_url || '/static/Images/FILLER.png'}" alt="${product.name}" 
+                <img src="${product.image_url || '/static/Images/FILLER.png'}" alt="${escapeHtml(product.name)}" 
                      onerror="this.src='/static/Images/FILLER.png'">
-                <div class="match-score">${Math.round(product.score * 100)}% Match</div>
+                <div class="match-score">${Math.round((Number(product.score) || 0) * 100)}% Match</div>
             </div>
             <div class="recommendation-info">
-                <h4 class="recommendation-name">${product.name}</h4>
-                <p class="recommendation-category">${product.category}</p>
+                <h4 class="recommendation-name">${escapeHtml(product.name)}</h4>
+                <p class="recommendation-category">${escapeHtml(product.category)}</p>
                 <p class="recommendation-price">$${parseFloat(product.price || 0).toFixed(2)}</p>
-                <div class="recommendation-reason" title="${product.reason || 'Based on your preferences'}">
-                    Why recommended?
-                </div>
+                <p class="recommendation-reason-snippet" title="${escapeHtml(fullReason)}">${escapeHtml(snippet)}</p>
             </div>
             <div class="recommendation-actions">
                 <button class="view-details-btn" onclick="viewProduct(${product.id})">View Details</button>
@@ -639,7 +655,7 @@
     }
     
     function refreshRecommendations() {
-        loadRecommendations();
+        loadRecommendations({ forceRefresh: true });
         showNotification('Refreshing recommendations...', 'info');
     }
     
@@ -658,10 +674,14 @@
     }
     
     function addToCart(productId) {
-        // Find the add to cart form for this product and submit it
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/add-to-cart/${productId}`;
+        form.action = '/add-to-cart';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'product_id';
+        input.value = String(productId);
+        form.appendChild(input);
         form.style.display = 'none';
         document.body.appendChild(form);
         form.submit();
