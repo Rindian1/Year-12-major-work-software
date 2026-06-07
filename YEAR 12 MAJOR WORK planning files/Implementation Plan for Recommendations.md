@@ -8,7 +8,7 @@ The application has:
 - **Product grid** with hover effects and filtering
 - **Existing notification system** for user feedback
 
-### **1. Survey Implementation Plan**
+### **1. Survey Implementation Plan**=
 
 #### **Location & Integration**
 - **Primary placement**: Modify [register.html](cci:7://file:///Users/ryanbhandari/Documents/Year%2012%20major%20work%20software/templates/register.html:0:0-0:0) to include 4-question survey after account creation
