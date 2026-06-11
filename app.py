@@ -998,10 +998,13 @@ def get_recommendations(user_id):
         algorithm = "knn_hybrid"
         try:
             recommendations = get_hybrid_recommender(DB_PATH).get_recommendations(user_id, n=10)
+            print(f"[DIAG] KNN returned {len(recommendations)} recommendations")
             if not recommendations:
+                print(f"[DIAG] KNN returned empty list, falling back to simple recommendations")
                 recommendations = generate_simple_recommendations(db, survey_data)
                 algorithm = "simple_survey_based"
-        except Exception:
+        except Exception as e:
+            print(f"[DIAG] KNN threw exception: {e}")
             traceback.print_exc()
             recommendations = generate_simple_recommendations(db, survey_data)
             algorithm = "simple_fallback"
@@ -1019,6 +1022,7 @@ def get_recommendations(user_id):
             )
 
         db.commit()
+        print(f"[DIAG] Returning {len(recommendations)} recommendations using {algorithm} algorithm")
 
         return jsonify({"recommendations": recommendations})
         

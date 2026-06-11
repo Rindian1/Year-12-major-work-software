@@ -29,8 +29,8 @@ def _minmax_norm(scores: Dict[int, float]) -> Dict[int, float]:
 
 
 def _instrument_allowed(u_inst: str, p_inst: str) -> bool:
-    u = (u_inst or "").lower()
-    p = (p_inst or "").lower()
+    u = str(u_inst or "").lower() if pd.notna(u_inst) else ""
+    p = str(p_inst or "").lower() if pd.notna(p_inst) else ""
     if not u or not p:
         return True
     return u == "both" or p == "both" or u == p
@@ -43,8 +43,10 @@ def _instrument_match_score(u_inst: str, p_inst: str) -> float:
 
 
 def _skill_compat(u_skill: str, p_skill: str) -> float:
-    uo = SKILL_ORDER.get((u_skill or "").lower(), 1)
-    po = SKILL_ORDER.get((p_skill or "").lower(), 1)
+    u_key = str(u_skill or "").lower() if pd.notna(u_skill) else ""
+    p_key = str(p_skill or "").lower() if pd.notna(p_skill) else ""
+    uo = SKILL_ORDER.get(u_key, 1)
+    po = SKILL_ORDER.get(p_key, 1)
     diff = abs(uo - po)
     if diff == 0:
         return 1.0
@@ -69,7 +71,7 @@ def _instrument_oh_static(inst: str | None) -> np.ndarray:
     from ml.feature_engineering import INSTRUMENT_ORDER
 
     vec = np.zeros(3, dtype=np.float64)
-    key = str(inst or "").lower()
+    key = str(inst or "").lower() if pd.notna(inst) else ""
     if key in INSTRUMENT_ORDER:
         vec[INSTRUMENT_ORDER.index(key)] = 1.0
     else:
@@ -78,7 +80,8 @@ def _instrument_oh_static(inst: str | None) -> np.ndarray:
 
 
 def _skill_value_static(skill: str | None) -> float:
-    v = SKILL_ORDER.get(str(skill or "").lower(), 1)
+    key = str(skill or "").lower() if pd.notna(skill) else ""
+    v = SKILL_ORDER.get(key, 1)
     return v / 3.0
 
 
