@@ -25,8 +25,7 @@ def _create_fixture_db(path: str) -> None:
             user_id INTEGER NOT NULL,
             skill_level VARCHAR(20) NOT NULL,
             instrument_type VARCHAR(20) NOT NULL,
-            preferred_genres TEXT NOT NULL,
-            budget_range VARCHAR(20) NOT NULL
+            preferred_genres TEXT NOT NULL
         );
         CREATE TABLE products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,9 +53,9 @@ def _create_fixture_db(path: str) -> None:
     )
     conn.execute("INSERT INTO users (username) VALUES ('a'), ('b')")
     conn.execute(
-        """INSERT INTO user_surveys (user_id, skill_level, instrument_type, preferred_genres, budget_range)
-           VALUES (1, 'beginner', 'electric', ?, 'under_500'),
-                  (2, 'beginner', 'electric', ?, 'under_500')""",
+        """INSERT INTO user_surveys (user_id, skill_level, instrument_type, preferred_genres)
+           VALUES (1, 'beginner', 'electric', ?),
+                  (2, 'beginner', 'electric', ?)""",
         (json.dumps(["rock"]), json.dumps(["rock"])),
     )
     conn.execute(
@@ -88,11 +87,10 @@ class TestMLRecommender(unittest.TestCase):
                 "skill_level": "beginner",
                 "instrument_type": "electric",
                 "preferred_genres": ["rock"],
-                "budget_range": "under_500",
             }
         )
         v = encode_user_survey_row(row)
-        self.assertEqual(v.shape, (14,))
+        self.assertEqual(v.shape, (13,))
         self.assertEqual(v[1 + 1], 1.0)
 
     def test_hybrid_returns_recommendations(self):
