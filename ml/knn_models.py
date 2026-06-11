@@ -28,28 +28,6 @@ def _minmax_norm(scores: Dict[int, float]) -> Dict[int, float]:
     return {k: (v - lo) / (hi - lo) for k, v in scores.items()}
 
 
-def _budget_price_compat(budget: str, price: float) -> float:
-    price = float(price or 0)
-    if budget == "under_500":
-        lo, hi = 0.0, 500.0
-    elif budget == "500_1000":
-        lo, hi = 500.0, 1000.0
-    elif budget == "1000_2000":
-        lo, hi = 1000.0, 2000.0
-    elif budget == "2000_5000":
-        lo, hi = 2000.0, 5000.0
-    elif budget == "over_5000":
-        lo, hi = 5000.0, 1e9
-    else:
-        return 0.7
-    if lo <= price <= hi:
-        return 1.0
-    mid = (lo + hi) / 2
-    dist = min(abs(price - lo), abs(price - hi), abs(price - mid))
-    band = hi - lo if hi > lo else 500.0
-    return max(0.35, 1.0 - min(dist / (band + 1e-9), 0.65))
-
-
 def _instrument_allowed(u_inst: str, p_inst: str) -> bool:
     u = (u_inst or "").lower()
     p = (p_inst or "").lower()
@@ -104,13 +82,6 @@ def _skill_value_static(skill: str | None) -> float:
     return v / 3.0
 
 
-def _budget_value_static(budget: str | None) -> float:
-    from ml.feature_engineering import BUDGET_ORDER
-
-    v = BUDGET_ORDER.get(str(budget or "").lower(), 2)
-    return v / 4.0
-
-
 class ContentBasedRecommender:
     def recommend(
         self,
@@ -155,17 +126,12 @@ class ContentBasedRecommender:
                 user_survey.get("skill_level") or "",
                 row.get("skill_level") or "",
             )
-            bud = _budget_price_compat(
-                user_survey.get("budget_range") or "",
-                float(row.get("price") or 0),
-            )
 
             p_vec = np.concatenate(
                 [
                     np.array([_skill_value_static(row.get("skill_level"))]),
                     _instrument_oh_static(row.get("instrument_type")),
                     _genre_oh_from_set(p_genres),
-                    np.array([_budget_value_static(row.get("price_range"))]),
                 ]
             )
             cos = float(
@@ -173,17 +139,16 @@ class ContentBasedRecommender:
             )
 
             score = (
-                0.32 * overlap
-                + 0.22 * inst
-                + 0.18 * sk
-                + 0.18 * bud
-                + 0.10 * max(0.0, min(1.0, cos))
+                0.40 * overlap
+                + 0.25 * inst
+                + 0.20 * sk
+                + 0.15 * max(0.0, min(1.0, cos))
             )
-            reason = "Matches your genres, skill level, and budget"
+            reason = "Matches your genres, skill level, and preferences"
             if overlap >= 0.5:
                 reason = "Strong genre match for your preferences"
             elif inst >= 0.99:
-                reason = "Fits your instrument type and budget"
+                reason = "Fits your instrument type perfectly"
             out[pid] = (score, reason)
         return out
 

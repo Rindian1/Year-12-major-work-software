@@ -195,7 +195,7 @@ class HybridRecommender:
         reason_u = next(iter(raw_user.values()), ("", "Popular with similar shoppers"))[1]
         reason_i = next(iter(raw_item.values()), ("", "Similar to your browsing"))[1]
         # default content reason
-        reason_c = "Matches your preferences and budget"
+        reason_c = "Matches your preferences"
         if raw_content:
             reason_c = next(iter(raw_content.values()))[1]
 
