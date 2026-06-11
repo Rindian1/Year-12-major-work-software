@@ -22,11 +22,18 @@ GENRES: List[str] = [
 
 SKILL_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2, "professional": 3}
 INSTRUMENT_ORDER = ["acoustic", "electric", "both"]
+BUDGET_ORDER = {
+    "under_500": 0,
+    "500_1000": 1,
+    "1000_2000": 2,
+    "2000_5000": 3,
+    "over_5000": 4,
+}
 CATEGORIES = ["guitars", "amplifiers", "effects", "accessories"]
 
-# Vector layout: skill(1) + instrument(3) + genres(9) + category(4) = 17
-SURVEY_DIM = 1 + 3 + 9  # 13 — user survey has no category, no budget
-PRODUCT_DIM = 1 + 3 + 9 + 4  # 17 — no budget
+# Vector layout: skill(1) + instrument(3) + genres(9) + budget(1) + category(4) = 18
+SURVEY_DIM = 1 + 3 + 9 + 1  # 14 — user survey has no category
+PRODUCT_DIM = 1 + 3 + 9 + 1 + 4  # 18
 
 
 def _skill_value(skill: str | None) -> float:
@@ -36,6 +43,11 @@ def _skill_value(skill: str | None) -> float:
     return v / 3.0
 
 
+def _budget_value(budget: str | None) -> float:
+    if not budget:
+        return 0.5
+    v = BUDGET_ORDER.get(str(budget).lower(), 2)
+    return v / 4.0
 
 
 def _instrument_onehot(inst: str | None) -> np.ndarray:
@@ -74,7 +86,7 @@ def _category_onehot(cat: str | None) -> np.ndarray:
 
 
 def encode_user_survey_row(row: pd.Series) -> np.ndarray:
-    """13-dim vector: skill, instrument one-hot, genre one-hot."""
+    """14-dim vector: skill, instrument one-hot, genre one-hot, budget."""
     genres = row.get("preferred_genres")
     if isinstance(genres, str):
         import json
@@ -87,6 +99,7 @@ def encode_user_survey_row(row: pd.Series) -> np.ndarray:
         np.array([_skill_value(row.get("skill_level"))]),
         _instrument_onehot(row.get("instrument_type")),
         _genre_onehot(genres),
+        np.array([_budget_value(row.get("budget_range"))]),
     ]
     return np.concatenate(parts)
 
@@ -100,6 +113,7 @@ def encode_product_row(row: pd.Series) -> np.ndarray:
         np.array([_skill_value(row.get("skill_level"))]),
         _instrument_onehot(row.get("instrument_type")),
         _genre_onehot(genres),
+        np.array([_budget_value(row.get("price_range"))]),
         _category_onehot(row.get("category")),
     ]
     return np.concatenate(parts)

@@ -861,7 +861,8 @@ def survey():
             survey_data = {
                 'skill_level': existing_survey['skill_level'],
                 'instrument_type': existing_survey['instrument_type'],
-                'preferred_genres': json.loads(existing_survey['preferred_genres'])
+                'preferred_genres': json.loads(existing_survey['preferred_genres']),
+                'budget_range': existing_survey['budget_range']
             }
             return render_template('survey.html', survey_data=survey_data, cart_count=cart_count)
         else:
@@ -878,7 +879,7 @@ def submit_survey():
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ['skill_level', 'instrument_type', 'preferred_genres']
+        required_fields = ['skill_level', 'instrument_type', 'preferred_genres', 'budget_range']
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
@@ -886,6 +887,7 @@ def submit_survey():
         # Validate field values
         valid_skill_levels = ['beginner', 'intermediate', 'advanced', 'professional']
         valid_instrument_types = ['acoustic', 'electric', 'both']
+        valid_budget_ranges = ['under_500', '500_1000', '1000_2000', '2000_5000', 'over_5000']
         valid_genres = ['rock', 'blues', 'jazz', 'classical', 'metal', 'pop', 'country', 'folk', 'indie']
         
         if data['skill_level'] not in valid_skill_levels:
@@ -894,6 +896,8 @@ def submit_survey():
         if data['instrument_type'] not in valid_instrument_types:
             return jsonify({'success': False, 'error': 'Invalid instrument type'}), 400
         
+        if data['budget_range'] not in valid_budget_ranges:
+            return jsonify({'success': False, 'error': 'Invalid budget range'}), 400
         
         # Validate genres
         if not isinstance(data['preferred_genres'], list) or len(data['preferred_genres']) == 0:
@@ -913,17 +917,17 @@ def submit_survey():
             # Update existing survey
             db.execute('''
                 UPDATE user_surveys 
-                SET skill_level = ?, instrument_type = ?, preferred_genres = ?, updated_at = CURRENT_TIMESTAMP
+                SET skill_level = ?, instrument_type = ?, preferred_genres = ?, budget_range = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE user_id = ?
             ''', (data['skill_level'], data['instrument_type'], json.dumps(data['preferred_genres']), 
-                  current_user.id))
+                  data['budget_range'], current_user.id))
         else:
             # Insert new survey
             db.execute('''
-                INSERT INTO user_surveys (user_id, skill_level, instrument_type, preferred_genres)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO user_surveys (user_id, skill_level, instrument_type, preferred_genres, budget_range)
+                VALUES (?, ?, ?, ?, ?)
             ''', (current_user.id, data['skill_level'], data['instrument_type'], 
-                  json.dumps(data['preferred_genres'])))
+                  json.dumps(data['preferred_genres']), data['budget_range']))
         
         db.execute('DELETE FROM recommendation_cache WHERE user_id = ?', (current_user.id,))
         db.commit()
@@ -994,6 +998,7 @@ def get_recommendations(user_id):
             "skill_level": user_survey["skill_level"],
             "instrument_type": user_survey["instrument_type"],
             "preferred_genres": json.loads(user_survey["preferred_genres"]),
+            "budget_range": user_survey["budget_range"],
         }
 
         algorithm = "knn_hybrid"
@@ -1040,6 +1045,17 @@ def generate_simple_recommendations(db, survey_data):
     
     params = [survey_data['instrument_type'], survey_data['skill_level']]
     
+    # Add budget filter
+    if survey_data['budget_range'] == 'under_500':
+        query += ' AND price < 500'
+    elif survey_data['budget_range'] == '500_1000':
+        query += ' AND price >= 500 AND price <= 1000'
+    elif survey_data['budget_range'] == '1000_2000':
+        query += ' AND price >= 1000 AND price <= 2000'
+    elif survey_data['budget_range'] == '2000_5000':
+        query += ' AND price >= 2000 AND price <= 5000'
+    elif survey_data['budget_range'] == 'over_5000':
+        query += ' AND price > 5000'
     
     query += ' ORDER BY RANDOM() LIMIT 5'
     

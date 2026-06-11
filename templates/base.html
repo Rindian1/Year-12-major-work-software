@@ -606,6 +606,7 @@
             <div class="recommendation-image">
                 <img src="${product.image_url || '/static/Images/FILLER.png'}" alt="${escapeHtml(product.name)}" 
                      onerror="this.src='/static/Images/FILLER.png'">
+                <div class="match-score">${Math.round((Number(product.score) || 0) * 100)}% Match</div>
             </div>
             <div class="recommendation-info">
                 <h4 class="recommendation-name">${escapeHtml(product.name)}</h4>
@@ -730,7 +731,7 @@
         const progressText = document.getElementById('progressText');
         
         function updateProgress() {
-            const totalQuestions = 3;
+            const totalQuestions = 4;
             let answeredQuestions = 0;
             
             // Check skill level
@@ -745,6 +746,9 @@
             const genres = surveyForm.querySelectorAll('input[name="preferred_genres"]:checked');
             if (genres.length > 0) answeredQuestions++;
             
+            // Check budget range
+            const budgetRange = surveyForm.querySelector('select[name="budget_range"]');
+            if (budgetRange && budgetRange.value) answeredQuestions++;
             
             const progress = Math.round((answeredQuestions / totalQuestions) * 100);
             

@@ -6,7 +6,7 @@ The guitar store recommendation system uses a **Hybrid K-Nearest Neighbors (KNN)
 
 1. **User-Based Collaborative Filtering** - Finds users with similar behavior and recommends products they liked
 2. **Item-Based Collaborative Filtering** - Finds products similar to those the user has interacted with
-3. **Content-Based Filtering** - Recommends products based on user preferences (skill level, instrument type, genres)
+3. **Content-Based Filtering** - Recommends products based on user preferences (skill level, instrument type, genres, budget)
 
 This hybrid approach addresses the limitations of any single method and provides more accurate, diverse, and explainable recommendations.
 
@@ -63,7 +63,7 @@ The `DataLoader` class is responsible for reading data from the SQLite database 
 **Key Methods:**
 
 - **load_users_with_surveys()**: Joins users table with user_surveys table to get user preferences
-  - Returns: DataFrame with columns: user_id, skill_level, instrument_type, preferred_genres
+  - Returns: DataFrame with columns: user_id, skill_level, instrument_type, preferred_genres, budget_range
   
 - **load_products()**: Loads all products with their attributes
   - Returns: DataFrame with columns: id, name, category, price, stock, description, image_url, skill_level, genre_suitability, instrument_type, price_range
@@ -80,7 +80,7 @@ The `DataLoader` class is responsible for reading data from the SQLite database 
   - Keeps only the highest-weighted interaction per user-product pair
 
 - **get_user_survey()**: Retrieves a specific user's survey responses
-  - Returns: Dictionary with skill_level, instrument_type, preferred_genres
+  - Returns: Dictionary with skill_level, instrument_type, preferred_genres, budget_range
 
 - **get_exclude_product_ids()**: Gets products to exclude from recommendations
   - Excludes products the user has purchased or added to cart (strong purchase signals)
@@ -91,26 +91,27 @@ The `FeatureEngineer` class converts categorical data into numerical vectors tha
 
 **Feature Encoding Scheme:**
 
-**User Survey Vector (13 dimensions):**
+**User Survey Vector (14 dimensions):**
 - Skill level (1 dim): Normalized 0-1 (beginner=0, intermediate=0.33, advanced=0.67, professional=1)
 - Instrument type (3 dim): One-hot encoding [acoustic, electric, both]
 - Preferred genres (9 dim): One-hot encoding for each genre [rock, blues, jazz, classical, metal, pop, country, folk, indie]
+- Budget range (1 dim): Normalized 0-1 (under_500=0, 500_1000=0.25, 1000_2000=0.5, 2000_5000=0.75, over_5000=1)
 
-**Product Vector (17 dimensions):**
-- Same as user vector (13 dim) PLUS:
+**Product Vector (18 dimensions):**
+- Same as user vector (14 dim) PLUS:
 - Category (4 dim): One-hot encoding [guitars, amplifiers, effects, accessories]
 
 **Key Methods:**
 
-- **build_user_feature_matrix()**:
+- **build_user_feature_matrix()**: 
   - Takes users DataFrame
-  - Encodes each user's survey into a 13-dim vector
+  - Encodes each user's survey into a 14-dim vector
   - Applies StandardScaler to normalize features
   - Returns: (scaled_matrix, user_ids, scaler)
 
 - **build_product_feature_matrix()**:
   - Takes products DataFrame
-  - Encodes each product into a 17-dim vector
+  - Encodes each product into an 18-dim vector
   - Applies StandardScaler to normalize features
   - Returns: (scaled_matrix, product_ids, scaler)
 
@@ -175,39 +176,45 @@ recommendation_score = similarity * seed_interaction_weight
 **Purpose:** Recommend products based on attribute similarity to user preferences.
 
 **How it works:**
-1. Takes user's survey responses (skill, instrument, genres)
+1. Takes user's survey responses (skill, instrument, genres, budget)
 2. For each product in catalog:
    - Calculates genre overlap (Jaccard-like similarity)
    - Calculates instrument compatibility score
    - Calculates skill level compatibility score
+   - Calculates budget-price compatibility score
    - Calculates cosine similarity between user vector and product vector
 3. Combines these scores with weighted averaging
 4. Filters out incompatible products (wrong instrument type, out of stock)
 
 **Scoring Formula:**
 ```python
-score = 0.39 * genre_overlap
-     + 0.27 * instrument_match
-     + 0.22 * skill_compatibility
-     + 0.12 * cosine_similarity
+score = 0.32 * genre_overlap
+     + 0.22 * instrument_match
+     + 0.18 * skill_compatibility
+     + 0.18 * budget_compatibility
+     + 0.10 * cosine_similarity
 ```
 
 **Compatibility Functions:**
 
 - **Genre Overlap:** `len(user_genres ∩ product_genres) / max(len(user_genres), 1)`
 - **Instrument Match:** 1.0 if compatible, 0.4 if not (both allows all)
-- **Skill Compatibility:**
+- **Skill Compatibility:** 
   - 1.0 if exact match
   - 0.85 if 1 level difference
   - 0.72 if product is beginner and user is higher
   - 0.35 if product is >1 level above user
   - 0.55 otherwise
+- **Budget Compatibility:**
+  - 1.0 if price is within budget range
+  - Decreases as price moves away from range
+  - Minimum 0.35
 
 **Output:** Dictionary of {product_id: (score, reason)}
 - Reasons vary based on strongest factor:
   - "Strong genre match for your preferences"
-  - "Fits your instrument type perfectly"
-  - "Matches your genres, skill level, and instrument type"
+  - "Fits your instrument type and budget"
+  - "Matches your genres, skill level, and budget"
 
 ### 4. Hybrid Recommender (HybridRecommender)
 
@@ -420,8 +427,8 @@ Each recommendation includes a human-readable reason:
 - **Item CF:** "Similar to items you browsed or saved"
 - **Content:** Various reasons based on strongest factor:
   - "Strong genre match for your preferences"
-  - "Fits your instrument type perfectly"
-  - "Matches your genres, skill level, and instrument type"
+  - "Fits your instrument type and budget"
+  - "Matches your genres, skill level, and budget"
 
 The reason is selected from the recommender that contributed the most to the final score.
 
@@ -442,7 +449,7 @@ The reason is selected from the recommender that contributed the most to the fin
 
 The KNN recommendation system is a sophisticated hybrid approach that:
 
-1. **Leverages multiple data sources:** User surveys (skill, instrument, genres), interaction history, product attributes
+1. **Leverages multiple data sources:** User surveys, interaction history, product attributes
 2. **Combines three complementary strategies:** User CF, item CF, content-based
 3. **Adapts to user behavior:** Adjusts weights based on interaction history
 4. **Handles edge cases:** Cold starts, missing data, failures

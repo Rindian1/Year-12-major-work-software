@@ -37,7 +37,7 @@ class DataLoader:
     def load_users_with_surveys(self) -> pd.DataFrame:
         sql = """
             SELECT u.id AS user_id, us.skill_level, us.instrument_type,
-                   us.preferred_genres
+                   us.preferred_genres, us.budget_range
             FROM users u
             INNER JOIN user_surveys us ON u.id = us.user_id
         """
@@ -109,7 +109,7 @@ class DataLoader:
 
     def get_user_survey(self, user_id: int) -> Optional[dict]:
         sql = """
-            SELECT skill_level, instrument_type, preferred_genres
+            SELECT skill_level, instrument_type, preferred_genres, budget_range
             FROM user_surveys WHERE user_id = ?
         """
         conn = self._connect()
@@ -124,6 +124,7 @@ class DataLoader:
             "skill_level": row["skill_level"],
             "instrument_type": row["instrument_type"],
             "preferred_genres": genres,
+            "budget_range": row["budget_range"],
         }
 
     def get_exclude_product_ids(self, user_id: int) -> Set[int]:

@@ -15,7 +15,7 @@ This is a Flask-based e-commerce application for selling guitars, amplifiers, ef
 - A simple recommendation system based on survey responses
 
 The goal is to replace the simple recommendation system with a sophisticated KNN-based machine learning recommendation system that provides personalized product recommendations based on:
-1. User survey responses (skill level, instrument type, preferred genres)
+1. User survey responses (skill level, instrument type, preferred genres, budget range)
 2. User-product interaction history (views, likes, add-to-cart, purchases)
 3. Collaborative filtering (similar users' behavior)
 4. Content-based filtering (product attribute similarities)
@@ -65,7 +65,7 @@ The goal is to replace the simple recommendation system with a sophisticated KNN
 
 **Already Implemented:**
 1. Database tables for ML functionality:
-   - `user_surveys` - stores user survey responses (skill_level, instrument_type, preferred_genres)
+   - `user_surveys` - stores user survey responses (skill_level, instrument_type, preferred_genres, budget_range)
    - `recommendation_cache` - caches ML recommendations with expiration
    - `product_interactions` - tracks user-product interactions (action, timestamp, duration, frequency)
    - `products` table has guitar-specific columns: skill_level, genre_suitability, instrument_type, price_range
@@ -76,7 +76,7 @@ The goal is to replace the simple recommendation system with a sophisticated KNN
    - `GET /survey` - survey page for updating preferences
 
 3. Frontend components:
-   - Survey page with 3 questions
+   - Survey page with 4 questions
    - Recommendations panel on dashboard
    - Survey integrated into registration flow
 
@@ -88,6 +88,7 @@ The goal is to replace the simple recommendation system with a sophisticated KNN
 **Current Recommendation Algorithm:**
 The current system uses a simple content-based filtering approach:
 - Filters products by instrument type and skill level
+- Applies budget range filters
 - Scores based on genre compatibility
 - Returns random products matching criteria
 - Caches results for 24 hours
@@ -144,6 +145,7 @@ CREATE TABLE user_surveys (
     skill_level VARCHAR(20) NOT NULL,
     instrument_type VARCHAR(20) NOT NULL,
     preferred_genres TEXT NOT NULL,  -- JSON array
+    budget_range VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
@@ -189,6 +191,7 @@ CREATE TABLE product_interactions (
 
 **preferred_genres:** Array containing any of: 'rock', 'blues', 'jazz', 'classical', 'metal', 'pop', 'country', 'folk', 'indie'
 
+**budget_range:** 'under_500', '500_1000', '1000_2000', '2000_5000', 'over_5000'
 
 **category:** 'guitars', 'amplifiers', 'effects', 'accessories'
 
@@ -239,7 +242,7 @@ Your document should be structured as follows:
 - Instructions on how to load data from SQLite database
 - How to query user_surveys, products, and product_interactions tables
 - How to handle missing data
-- How to encode categorical variables (skill level, instrument type, genres)
+- How to encode categorical variables (skill level, instrument type, genres, budget range)
 - How to create user-product interaction matrices
 - How to scale/normalize features
 
@@ -248,7 +251,7 @@ Your document should be structured as follows:
 - Instructions on encoding product features into numerical vectors
 - How to handle genre preferences (one-hot encoding)
 - How to handle categorical variables (skill level, instrument type)
-- How to incorporate popularity scores
+- How to incorporate price ranges and popularity scores
 
 #### Step 4: KNN Model Implementation
 - Instructions on implementing user-user collaborative filtering

@@ -179,6 +179,18 @@
                         </div>
                     </div>
                     
+                    <!-- Question 4: Budget Range -->
+                    <div class="form-group survey-question">
+                        <label class="survey-label">What's your typical budget range?</label>
+                        <select name="budget_range" class="survey-select" required>
+                            <option value="">Select your budget range</option>
+                            <option value="under_500" {% if survey_data and survey_data.budget_range == 'under_500' %}selected{% endif %}>Under $500</option>
+                            <option value="500_1000" {% if survey_data and survey_data.budget_range == '500_1000' %}selected{% endif %}>$500 - $1,000</option>
+                            <option value="1000_2000" {% if survey_data and survey_data.budget_range == '1000_2000' %}selected{% endif %}>$1,000 - $2,000</option>
+                            <option value="2000_5000" {% if survey_data and survey_data.budget_range == '2000_5000' %}selected{% endif %}>$2,000 - $5,000</option>
+                            <option value="over_5000" {% if survey_data and survey_data.budget_range == 'over_5000' %}selected{% endif %}>Over $5,000</option>
+                        </select>
+                    </div>
                     
                     <!-- Survey Progress -->
                     <div class="survey-progress">
@@ -223,7 +235,7 @@
             const progressText = document.getElementById('progressText');
             
             function updateProgress() {
-                const totalQuestions = 3;
+                const totalQuestions = 4;
                 let answeredQuestions = 0;
                 
                 // Check skill level
@@ -238,6 +250,9 @@
                 const genres = surveyForm.querySelectorAll('input[name="preferred_genres"]:checked');
                 if (genres.length > 0) answeredQuestions++;
                 
+                // Check budget range
+                const budgetRange = surveyForm.querySelector('select[name="budget_range"]');
+                if (budgetRange && budgetRange.value) answeredQuestions++;
                 
                 const progress = Math.round((answeredQuestions / totalQuestions) * 100);
                 
@@ -267,9 +282,10 @@
             // Validate required fields
             const skillLevel = formData.get('skill_level');
             const instrumentType = formData.get('instrument_type');
+            const budgetRange = formData.get('budget_range');
             const genres = formData.getAll('preferred_genres');
             
-            if (!skillLevel || !instrumentType || genres.length === 0) {
+            if (!skillLevel || !instrumentType || !budgetRange || genres.length === 0) {
                 showNotification('Please answer all questions to complete the survey', 'error');
                 return;
             }
@@ -278,7 +294,8 @@
             const surveyData = {
                 skill_level: skillLevel,
                 instrument_type: instrumentType,
-                preferred_genres: genres
+                preferred_genres: genres,
+                budget_range: budgetRange
             };
             
             // Submit survey data
