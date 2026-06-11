@@ -993,7 +993,6 @@ def get_recommendations(user_id):
             "skill_level": user_survey["skill_level"],
             "instrument_type": user_survey["instrument_type"],
             "preferred_genres": json.loads(user_survey["preferred_genres"]),
-            "budget_range": user_survey["budget_range"],
         }
 
         algorithm = "knn_hybrid"
@@ -1039,18 +1038,6 @@ def generate_simple_recommendations(db, survey_data):
     '''
     
     params = [survey_data['instrument_type'], survey_data['skill_level']]
-    
-    # Add budget filter
-    if survey_data['budget_range'] == 'under_500':
-        query += ' AND price < 500'
-    elif survey_data['budget_range'] == '500_1000':
-        query += ' AND price >= 500 AND price <= 1000'
-    elif survey_data['budget_range'] == '1000_2000':
-        query += ' AND price >= 1000 AND price <= 2000'
-    elif survey_data['budget_range'] == '2000_5000':
-        query += ' AND price >= 2000 AND price <= 5000'
-    elif survey_data['budget_range'] == 'over_5000':
-        query += ' AND price > 5000'
     
     query += ' ORDER BY RANDOM() LIMIT 5'
     
