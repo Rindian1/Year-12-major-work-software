@@ -35,9 +35,6 @@ ENV/
 *.swo
 
 # Database
-*.db
-*.sqlite3
-instance/
 
 # Logs
 *.log
@@ -54,8 +51,6 @@ htmlcov/
 sound_tests.md
 youtube_search.log
 
-# Local configuration
-config.py
 
 # Environment-specific settings
 .env.local
