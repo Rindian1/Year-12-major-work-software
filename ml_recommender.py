@@ -227,7 +227,13 @@ class HybridRecommender:
             i_part = wi * ni_n.get(pid, 0.0)
             c_part = wc * nc_n.get(pid, 0.0)
             pop_boost = 0.05 * self._popularity.get(pid, 0.0)
-            score = min(1.0, u_part + i_part + c_part + pop_boost)
+            acoustic_boost = 0.0
+            if (survey.get("instrument_type") or "").lower() == "acoustic":
+                p_cat = (r0.get("category") or "").lower()
+                p_inst = (r0.get("instrument_type") or "").lower()
+                if p_cat == "guitars" and p_inst == "acoustic":
+                    acoustic_boost = 0.15
+            score = min(1.0, u_part + i_part + c_part + pop_boost + acoustic_boost)
 
             cr = raw_content.get(pid, (0.0, reason_c))[1]
             ur = raw_user.get(pid, (0.0, reason_u))[1]
