@@ -178,9 +178,11 @@ class HybridRecommender:
         user_w = self._user_interaction_weight(user_id) if user_idx >= 0 else 0.0
         w_u, w_i, w_c = USER_CF_WEIGHT, ITEM_CF_WEIGHT, CONTENT_WEIGHT
         if user_w < 5:
-            w_u, w_i, w_c = 0.25, 0.25, 0.5
+            # Low interaction: rely more on content & item-based recommendations
+            w_u, w_i, w_c = 0.2, 0.3, 0.5
         elif user_w > 80:
-            w_u, w_i, w_c = 0.45, 0.35, 0.2
+            # High interaction: heavily favor item-based (recently viewed) & user-based recommendations
+            w_u, w_i, w_c = 0.2, 0.5, 0.3
 
         raw_user = self._user_knn.recommend(user_id, top_n=40) if len(self._user_ids) > 1 else {}
         raw_item: Dict[int, Tuple[float, str]] = {}
