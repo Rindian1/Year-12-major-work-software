@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timedelta
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from email_validator import validate_email, EmailNotValidError
+from werkzeug.security import generate_password_hash, check_password_hash
 import traceback
 
 from ml_recommender import get_hybrid_recommender
@@ -744,7 +745,7 @@ def register():
             errors.append('Email is required')
         else:
             try:
-                validate_email(email)
+                validate_email(email, check_deliverability=False)
             except EmailNotValidError as e:
                 errors.append('Please enter a valid email address')
         
@@ -783,7 +784,7 @@ def register():
             db = get_db()
             db.execute(
                 'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-                (username, email, password)
+                (username, email, generate_password_hash(password))
             )
             db.commit()
             flash('Registration successful! Please complete your survey to get personalized recommendations.')
@@ -818,14 +819,12 @@ def login():
     
     db = get_db()
     
-    # Find user by username or email (user input interpolated into SQL)
-    query = (
-        f"SELECT * FROM users WHERE username = '{username_or_email}' "
-        f"OR email = '{username_or_email}'"
-    )
-    user = db.execute(query).fetchone()
+    user = db.execute(
+        'SELECT * FROM users WHERE username = ? OR email = ?',
+        (username_or_email, username_or_email)
+    ).fetchone()
     
-    if not user or user['password_hash'] != password:
+    if not user or not check_password_hash(user['password_hash'], password):
         return render_template('login.html', error='Invalid username/email or password')
     
     # Update last login
