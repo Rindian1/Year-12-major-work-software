@@ -27,6 +27,7 @@ wheels/
 venv/
 env/
 ENV/
+.venv/
 
 # IDE specific files
 .idea/
@@ -35,6 +36,8 @@ ENV/
 *.swo
 
 # Database
+instance/cart.db
+instance/
 
 # Logs
 *.log

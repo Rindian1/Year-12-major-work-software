@@ -17,7 +17,7 @@ import traceback
 from ml_recommender import get_hybrid_recommender
 
 app = Flask(__name__, instance_relative_config=True)
-app.secret_key = 'your-secret-key-change-in-production'
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24).hex())
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -27,7 +27,6 @@ login_manager.login_message = 'Please log in to access this page.'
 
 # --- Database helpers ---
 # Use instance folder for database (works regardless of parent folder name)
-import os
 
 # Ensure instance directory exists
 os.makedirs(app.instance_path, exist_ok=True)
@@ -36,10 +35,12 @@ os.makedirs(app.instance_path, exist_ok=True)
 DB_PATH = os.path.join(app.instance_path, 'cart.db')
 print(f"Using database at: {DB_PATH}")  # Helpful for debugging
 
+
+
 def get_db():
     db = getattr(g, '_db', None)
     if db is None:
-        db = g._db = sqlite3.connect(DB_PATH, check_same_thread=False)
+        db = g._db = sqlite3.connect(DB_PATH, timeout=10)
         db.row_factory = sqlite3.Row
     return db
 
@@ -84,6 +85,15 @@ def inject_globals():
         'categories': get_categories()
     }
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.youtube.com; script-src 'self' 'unsafe-inline'"
+    return response
+
 @app.teardown_appcontext
 def close_db(exception):
     db = getattr(g, '_db', None)
@@ -93,7 +103,8 @@ def close_db(exception):
 def init_db():
     try:
         print(f"Initializing database at: {DB_PATH}")
-        db = get_db()
+        db = sqlite3.connect(DB_PATH)
+        db.row_factory = sqlite3.Row
         
         # Enable foreign key support
         db.execute('PRAGMA foreign_keys = ON')
@@ -126,7 +137,6 @@ def init_db():
             """
         )
 
-        # Add user_id column if it doesn't exist (for existing databases)
         cursor = db.cursor()
         cursor.execute("PRAGMA table_info(cart_items)")
         columns = [col[1] for col in cursor.fetchall()]
@@ -151,6 +161,17 @@ def init_db():
             )
             """
         )
+
+        cursor.execute("PRAGMA table_info(products)")
+        prod_cols = [col[1] for col in cursor.fetchall()]
+        if 'skill_level' not in prod_cols:
+            cursor.execute('ALTER TABLE products ADD COLUMN skill_level VARCHAR(20)')
+        if 'genre_suitability' not in prod_cols:
+            cursor.execute('ALTER TABLE products ADD COLUMN genre_suitability TEXT')
+        if 'instrument_type' not in prod_cols:
+            cursor.execute('ALTER TABLE products ADD COLUMN instrument_type VARCHAR(20)')
+        if 'price_range' not in prod_cols:
+            cursor.execute('ALTER TABLE products ADD COLUMN price_range VARCHAR(20)')
         
         db.execute(
             """
@@ -164,7 +185,58 @@ def init_db():
             )
             """
         )
+        
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_surveys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                skill_level VARCHAR(20) NOT NULL,
+                instrument_type VARCHAR(20) NOT NULL,
+                preferred_genres TEXT NOT NULL,
+                budget_range VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+        
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS recommendation_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                score REAL NOT NULL,
+                algorithm VARCHAR(50) NOT NULL,
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+            """
+        )
+        
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS product_interactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                action VARCHAR(20) NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                duration INTEGER DEFAULT 0,
+                frequency INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+            """
+        )
+        
         db.commit()
+        db.close()
         print("Database initialized successfully")
     except sqlite3.Error as e:
         print(f"Error initializing database: {e}")
@@ -378,11 +450,29 @@ def update_product_images():
     
     db.commit()
 
+# Initialize database schema and seed data once at startup
+try:
+    conn = sqlite3.connect(DB_PATH)
+    conn.close()
+    init_db()
+    with app.app_context():
+        seed_products()
+        update_product_images()
+except sqlite3.Error as e:
+    print(f"Warning: Database initialization failed: {e}")
+
+# Pre-warm ML model at startup so first request isn't slow
+try:
+    from ml_recommender import get_hybrid_recommender
+    hr = get_hybrid_recommender(DB_PATH)
+    hr.refresh()
+    print("ML model pre-warmed successfully")
+except Exception as e:
+    print(f"ML model pre-warm skipped (will build on first request): {e}")
+
 @app.before_request
 def setup():
-    init_db()
-    seed_products()
-    update_product_images()
+    g.db = get_db()
 
 # --- Routes ---
 @app.route('/')
@@ -1035,9 +1125,9 @@ def generate_simple_recommendations(db, survey_data):
     
     # Get products matching user preferences
     query = '''
-        SELECT * FROM products 
-        WHERE instrument_type = ? OR instrument_type = 'both'
-        AND skill_level = ? OR skill_level = 'beginner'
+        SELECT * FROM products
+        WHERE (instrument_type = ? OR instrument_type = 'both')
+        AND (skill_level = ? OR skill_level = 'beginner')
     '''
     
     params = [survey_data['instrument_type'], survey_data['skill_level']]
